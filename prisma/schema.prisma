@@ -1,0 +1,51 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum EstadoPrestamo {
+  ACTIVO
+  PAGADO
+  ATRASADO
+}
+
+model Cliente {
+  id        String     @id @default(cuid())
+  nombre    String
+  telefono  String?
+  direccion String?
+  notas     String?
+  createdAt DateTime   @default(now())
+  prestamos Prestamo[]
+}
+
+model Prestamo {
+  id               String         @id @default(cuid())
+  clienteId        String
+  cliente          Cliente        @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  monto            Decimal        @db.Decimal(12, 2)
+  tasaInteres      Decimal        @default(0) @db.Decimal(5, 2)
+  fechaPrestamo    DateTime       @default(now())
+  fechaVencimiento DateTime?
+  estado           EstadoPrestamo @default(ACTIVO)
+  notas            String?
+  createdAt        DateTime       @default(now())
+  pagos            Pago[]
+}
+
+model Pago {
+  id         String   @id @default(cuid())
+  prestamoId String
+  prestamo   Prestamo @relation(fields: [prestamoId], references: [id], onDelete: Cascade)
+  monto      Decimal  @db.Decimal(12, 2)
+  fecha      DateTime @default(now())
+  notas      String?
+  createdAt  DateTime @default(now())
+}
