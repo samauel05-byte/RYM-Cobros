@@ -1,0 +1,1838 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RYM Soluciones - Sistema de Préstamos</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --gold: #C8A84B;
+    --gold-light: #E2C97E;
+    --dark: #0D0E12;
+    --dark2: #161820;
+    --dark3: #1E2028;
+    --dark4: #252830;
+    --border: rgba(200,168,75,0.2);
+    --text: #E8E9EF;
+    --muted: #7C7F8E;
+    --green: #2ECC71;
+    --red: #E74C3C;
+    --blue: #3498DB;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--dark); color:var(--text); font-family:'Outfit',sans-serif; min-height:100vh; }
+
+  /* LOGIN */
+  #loginScreen {
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    background: radial-gradient(ellipse at 60% 40%, #1a1500 0%, var(--dark) 70%);
+  }
+  .login-box {
+    background:var(--dark2); border:1px solid var(--border);
+    border-radius:20px; padding:50px 40px; width:420px;
+    box-shadow: 0 0 80px rgba(200,168,75,0.1);
+  }
+  .logo-area { text-align:center; margin-bottom:35px; }
+  .logo-circle {
+    width:90px; height:90px; background:linear-gradient(135deg,var(--gold),#8B6914);
+    border-radius:50%; display:flex; align-items:center; justify-content:center;
+    margin:0 auto 15px; font-family:'Bebas Neue',sans-serif; font-size:28px;
+    color:#000; letter-spacing:2px; box-shadow:0 0 30px rgba(200,168,75,0.4);
+  }
+  .logo-title { font-family:'Bebas Neue',sans-serif; font-size:36px; letter-spacing:4px; color:var(--gold); }
+  .logo-sub { font-size:12px; color:var(--muted); letter-spacing:3px; text-transform:uppercase; margin-top:4px; }
+  .form-group { margin-bottom:18px; }
+  .form-group label { display:block; font-size:12px; color:var(--muted); letter-spacing:1px; text-transform:uppercase; margin-bottom:8px; }
+  .form-group input {
+    width:100%; background:var(--dark3); border:1px solid var(--border);
+    border-radius:10px; padding:14px 16px; color:var(--text); font-size:15px; font-family:'Outfit',sans-serif;
+    outline:none; transition:.3s;
+  }
+  .form-group input:focus { border-color:var(--gold); box-shadow:0 0 0 3px rgba(200,168,75,0.1); }
+  .btn-login {
+    width:100%; background:linear-gradient(135deg,var(--gold),#8B6914);
+    border:none; border-radius:10px; padding:16px; font-size:16px; font-weight:700;
+    color:#000; cursor:pointer; letter-spacing:2px; font-family:'Bebas Neue',sans-serif;
+    transition:.3s; margin-top:10px;
+  }
+  .btn-login:hover { transform:translateY(-2px); box-shadow:0 8px 25px rgba(200,168,75,0.4); }
+  .login-error { color:var(--red); font-size:13px; text-align:center; margin-top:12px; display:none; }
+
+  /* MAIN APP */
+  #appScreen { display:none; min-height:100vh; }
+  .sidebar {
+    position:fixed; left:0; top:0; bottom:0; width:240px;
+    background:var(--dark2); border-right:1px solid var(--border);
+    display:flex; flex-direction:column; z-index:100;
+  }
+  .sidebar-logo {
+    padding:25px 20px; border-bottom:1px solid var(--border);
+    display:flex; align-items:center; gap:12px;
+  }
+  .s-logo {
+    width:42px; height:42px; background:linear-gradient(135deg,var(--gold),#8B6914);
+    border-radius:10px; display:flex; align-items:center; justify-content:center;
+    font-family:'Bebas Neue',sans-serif; font-size:14px; color:#000; letter-spacing:1px;
+  }
+  .s-title { font-family:'Bebas Neue',sans-serif; font-size:20px; letter-spacing:2px; color:var(--gold); }
+  .s-sub { font-size:10px; color:var(--muted); }
+  nav { flex:1; padding:20px 12px; overflow-y:auto; }
+  .nav-section { font-size:10px; color:var(--muted); letter-spacing:2px; text-transform:uppercase; padding:0 8px; margin:16px 0 8px; }
+  .nav-item {
+    display:flex; align-items:center; gap:12px; padding:11px 12px;
+    border-radius:10px; cursor:pointer; font-size:14px; font-weight:500;
+    color:var(--muted); transition:.2s; margin-bottom:4px; border:none; background:none; width:100%; text-align:left;
+  }
+  .nav-item:hover { background:var(--dark3); color:var(--text); }
+  .nav-item.active { background:rgba(200,168,75,0.12); color:var(--gold); }
+  .nav-item svg { flex-shrink:0; }
+  .sidebar-user {
+    padding:16px 20px; border-top:1px solid var(--border);
+    display:flex; align-items:center; gap:10px;
+  }
+  .user-avatar {
+    width:36px; height:36px; border-radius:50%;
+    background:linear-gradient(135deg,var(--gold),#8B6914);
+    display:flex; align-items:center; justify-content:center;
+    font-weight:700; color:#000; font-size:13px;
+  }
+  .user-name { font-size:13px; font-weight:600; }
+  .user-role { font-size:11px; color:var(--muted); }
+  .btn-logout {
+    margin-left:auto; background:none; border:none; color:var(--muted);
+    cursor:pointer; padding:4px; border-radius:6px;
+  }
+  .btn-logout:hover { color:var(--red); }
+  .main-content { margin-left:240px; padding:30px; min-height:100vh; }
+
+  /* PAGES */
+  .page { display:none; }
+  .page.active { display:block; }
+  .page-header { margin-bottom:28px; }
+  .page-header h1 { font-family:'Bebas Neue',sans-serif; font-size:32px; letter-spacing:3px; color:var(--gold); }
+  .page-header p { color:var(--muted); font-size:14px; margin-top:4px; }
+
+  /* CARDS */
+  .stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:18px; margin-bottom:28px; }
+  .stat-card {
+    background:var(--dark2); border:1px solid var(--border); border-radius:14px;
+    padding:22px; position:relative; overflow:hidden;
+  }
+  .stat-card::before {
+    content:''; position:absolute; top:0; right:0; width:80px; height:80px;
+    border-radius:0 14px 0 80px; opacity:.08;
+  }
+  .stat-card.gold::before { background:var(--gold); }
+  .stat-card.green::before { background:var(--green); }
+  .stat-card.blue::before { background:var(--blue); }
+  .stat-card.red::before { background:var(--red); }
+  .stat-label { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; }
+  .stat-value { font-family:'Bebas Neue',sans-serif; font-size:30px; color:var(--text); margin:6px 0 4px; letter-spacing:1px; }
+  .stat-card.gold .stat-value { color:var(--gold); }
+  .stat-card.green .stat-value { color:var(--green); }
+  .stat-card.red .stat-value { color:var(--red); }
+  .stat-sub { font-size:12px; color:var(--muted); }
+
+  /* TABLE */
+  .table-wrap { background:var(--dark2); border:1px solid var(--border); border-radius:14px; overflow:hidden; }
+  .table-head { padding:18px 22px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--border); }
+  .table-head h3 { font-size:15px; font-weight:600; }
+  .search-box {
+    background:var(--dark3); border:1px solid var(--border); border-radius:8px;
+    padding:9px 14px; color:var(--text); font-family:'Outfit',sans-serif; font-size:14px;
+    outline:none; width:220px;
+  }
+  .search-box:focus { border-color:var(--gold); }
+  table { width:100%; border-collapse:collapse; }
+  th { padding:12px 16px; font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); text-align:left; border-bottom:1px solid var(--border); font-weight:600; }
+  td { padding:14px 16px; font-size:14px; border-bottom:1px solid rgba(255,255,255,0.04); }
+  tr:last-child td { border-bottom:none; }
+  tr:hover td { background:rgba(255,255,255,0.02); }
+  .badge {
+    display:inline-flex; align-items:center; padding:4px 10px; border-radius:20px;
+    font-size:11px; font-weight:600; letter-spacing:.5px;
+  }
+  .badge.active { background:rgba(46,204,113,.12); color:var(--green); }
+  .badge.pagado { background:rgba(52,152,219,.12); color:var(--blue); }
+  .badge.vencido { background:rgba(231,76,60,.12); color:var(--red); }
+  .badge.diario { background:rgba(200,168,75,.12); color:var(--gold); }
+
+  /* BUTTONS */
+  .btn {
+    padding:10px 18px; border-radius:9px; border:none; cursor:pointer;
+    font-size:13px; font-weight:600; font-family:'Outfit',sans-serif; transition:.2s; display:inline-flex; align-items:center; gap:6px;
+  }
+  .btn-gold { background:linear-gradient(135deg,var(--gold),#8B6914); color:#000; }
+  .btn-gold:hover { transform:translateY(-1px); box-shadow:0 5px 18px rgba(200,168,75,.35); }
+  .btn-outline { background:transparent; border:1px solid var(--border); color:var(--text); }
+  .btn-outline:hover { border-color:var(--gold); color:var(--gold); }
+  .btn-red { background:rgba(231,76,60,.12); color:var(--red); border:1px solid rgba(231,76,60,.2); }
+  .btn-red:hover { background:rgba(231,76,60,.2); }
+  .btn-green { background:rgba(46,204,113,.12); color:var(--green); border:1px solid rgba(46,204,113,.2); }
+  .btn-green:hover { background:rgba(46,204,113,.2); }
+  .btn-blue { background:rgba(52,152,219,.12); color:var(--blue); border:1px solid rgba(52,152,219,.2); }
+  .btn-blue:hover { background:rgba(52,152,219,.2); }
+  .action-bar { display:flex; gap:10px; margin-bottom:20px; }
+
+  /* MODAL */
+  .modal-overlay {
+    position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:1000;
+    display:flex; align-items:center; justify-content:center; display:none;
+    backdrop-filter:blur(4px);
+  }
+  .modal-overlay.show { display:flex; }
+  .modal {
+    background:var(--dark2); border:1px solid var(--border); border-radius:18px;
+    padding:32px; width:520px; max-width:95vw; max-height:90vh; overflow-y:auto;
+    box-shadow:0 25px 60px rgba(0,0,0,.5);
+  }
+  .modal h2 { font-family:'Bebas Neue',sans-serif; font-size:26px; letter-spacing:2px; color:var(--gold); margin-bottom:22px; }
+  .modal-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .modal-grid .full { grid-column:1/-1; }
+  .field label { display:block; font-size:11px; color:var(--muted); letter-spacing:1px; text-transform:uppercase; margin-bottom:7px; }
+  .field input, .field select {
+    width:100%; background:var(--dark3); border:1px solid var(--border);
+    border-radius:9px; padding:12px 14px; color:var(--text); font-size:14px;
+    font-family:'Outfit',sans-serif; outline:none; transition:.2s;
+  }
+  .field input:focus, .field select:focus { border-color:var(--gold); }
+  .field select option { background:var(--dark3); }
+  .modal-footer { display:flex; gap:10px; justify-content:flex-end; margin-top:22px; }
+
+  /* CALC PANEL */
+  .calc-panel {
+    background:var(--dark3); border:1px solid var(--border); border-radius:12px;
+    padding:18px; margin-top:16px;
+  }
+  .calc-panel h4 { font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:14px; }
+  .calc-table { width:100%; border-collapse:collapse; }
+  .calc-table th { padding:8px 12px; font-size:11px; color:var(--muted); text-align:left; }
+  .calc-table td { padding:10px 12px; font-size:14px; }
+  .calc-table tr { border-bottom:1px solid rgba(255,255,255,0.05); }
+  .calc-table tr:last-child { border-bottom:none; }
+  .highlight { color:var(--gold); font-weight:700; font-size:15px; }
+
+  /* PRINT STYLES */
+  @media print {
+    .sidebar, .action-bar, .modal-overlay, .btn, nav { display:none !important; }
+    .main-content { margin-left:0 !important; padding:0 !important; }
+    body { background:white; color:#000; }
+    .print-area { display:block !important; }
+  }
+  .print-area { display:none; }
+
+  /* DESGLOSE MODAL */
+  .desglose-header {
+    display:flex; align-items:center; gap:16px; margin-bottom:20px;
+    padding-bottom:16px; border-bottom:1px solid var(--border);
+  }
+  .desglose-avatar {
+    width:56px; height:56px; border-radius:12px;
+    background:linear-gradient(135deg,var(--gold),#8B6914);
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Bebas Neue',sans-serif; font-size:22px; color:#000;
+  }
+  .desglose-name { font-size:20px; font-weight:700; }
+  .desglose-id { font-size:12px; color:var(--muted); margin-top:2px; }
+  .desglose-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:20px; }
+  .d-card { background:var(--dark3); border-radius:10px; padding:14px; text-align:center; }
+  .d-label { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; }
+  .d-value { font-family:'Bebas Neue',sans-serif; font-size:22px; margin-top:4px; }
+  .desglose-table { width:100%; border-collapse:collapse; margin-bottom:16px; }
+  .desglose-table th { padding:10px 14px; background:var(--dark3); font-size:11px; color:var(--muted); text-transform:uppercase; }
+  .desglose-table td { padding:11px 14px; border-bottom:1px solid rgba(255,255,255,.04); font-size:13px; }
+  .desglose-table tr:last-child td { border:none; }
+
+  /* DASHBOARD */
+  .dash-row { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-bottom:18px; }
+  .dash-card { background:var(--dark2); border:1px solid var(--border); border-radius:14px; padding:22px; }
+  .dash-card h3 { font-size:13px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:18px; }
+  .prog-bar-wrap { margin-bottom:12px; }
+  .prog-label { display:flex; justify-content:space-between; font-size:13px; margin-bottom:6px; }
+  .prog-bar { height:8px; background:var(--dark4); border-radius:4px; overflow:hidden; }
+  .prog-fill { height:100%; border-radius:4px; transition:.5s; }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width:6px; }
+  ::-webkit-scrollbar-track { background:var(--dark2); }
+  ::-webkit-scrollbar-thumb { background:var(--dark4); border-radius:3px; }
+
+  /* TOAST */
+  .toast {
+    position:fixed; bottom:24px; right:24px; z-index:9999;
+    background:var(--dark3); border:1px solid var(--border);
+    border-radius:12px; padding:14px 20px; font-size:14px;
+    box-shadow:0 8px 30px rgba(0,0,0,.4); transform:translateY(100px);
+    transition:.3s; display:flex; align-items:center; gap:10px;
+  }
+  .toast.show { transform:translateY(0); }
+  .toast.success { border-color:rgba(46,204,113,.4); color:var(--green); }
+  .toast.error { border-color:rgba(231,76,60,.4); color:var(--red); }
+
+  .empty-state { text-align:center; padding:50px 20px; color:var(--muted); }
+  .empty-state svg { margin-bottom:12px; opacity:.3; }
+
+  /* USERS PAGE */
+  .user-card {
+    background:var(--dark2); border:1px solid var(--border); border-radius:14px;
+    padding:20px; display:flex; align-items:center; gap:16px; margin-bottom:12px;
+  }
+  .u-av {
+    width:46px; height:46px; border-radius:12px; display:flex; align-items:center;
+    justify-content:center; font-weight:700; font-size:16px; flex-shrink:0;
+  }
+  .u-info { flex:1; }
+  .u-name { font-size:15px; font-weight:600; }
+  .u-meta { font-size:12px; color:var(--muted); margin-top:3px; }
+  .role-badge {
+    padding:4px 12px; border-radius:20px; font-size:11px; font-weight:700; letter-spacing:.5px;
+  }
+  .role-admin { background:rgba(200,168,75,.15); color:var(--gold); }
+  .role-cajero { background:rgba(52,152,219,.15); color:var(--blue); }
+  .role-viewer { background:rgba(127,127,127,.15); color:var(--muted); }
+
+  /* COBROS */
+  .cobros-filter { display:flex; gap:10px; margin-bottom:20px; }
+  .filter-btn {
+    padding:9px 18px; border-radius:8px; border:1px solid var(--border);
+    background:transparent; color:var(--muted); cursor:pointer; font-size:13px;
+    font-family:'Outfit',sans-serif; transition:.2s;
+  }
+  .filter-btn.active { background:rgba(200,168,75,.12); border-color:var(--gold); color:var(--gold); }
+
+  .pago-row { background:var(--dark2); border:1px solid var(--border); border-radius:12px; padding:16px 20px; margin-bottom:10px; display:flex; align-items:center; gap:16px; }
+  .pago-info { flex:1; }
+  .pago-name { font-size:15px; font-weight:600; }
+  .pago-meta { font-size:12px; color:var(--muted); margin-top:3px; }
+  .pago-amounts { text-align:right; }
+  .pago-main { font-size:18px; font-weight:700; color:var(--gold); }
+  .pago-freq { font-size:11px; color:var(--muted); }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="logo-area">
+      <div class="logo-circle">RYM</div>
+      <div class="logo-title">RYM Soluciones</div>
+      <div class="logo-sub">Sistema de Gestión de Préstamos</div>
+    </div>
+    <div class="form-group">
+      <label>Usuario</label>
+      <input type="text" id="loginUser" placeholder="Ingrese su usuario" autocomplete="off">
+    </div>
+    <div class="form-group">
+      <label>Contraseña</label>
+      <input type="password" id="loginPass" placeholder="••••••••">
+    </div>
+    <button class="btn-login" onclick="doLogin()">INICIAR SESIÓN</button>
+    <div class="login-error" id="loginError">Usuario o contraseña incorrectos</div>
+    <div style="margin-top:28px;padding-top:18px;border-top:1px solid rgba(200,168,75,0.15);text-align:center">
+      <div style="font-size:11px;color:rgba(200,168,75,0.5);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px">Desarrollado por</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--gold);letter-spacing:3px">Samuel Roa</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:4px">📞 809-986-3977</div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.2);margin-top:6px" id="fechaCreacion"></div>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="appScreen">
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <div class="s-logo">RYM</div>
+      <div><div class="s-title">RYM</div><div class="s-sub">Soluciones</div></div>
+    </div>
+    <nav>
+      <div class="nav-section">Principal</div>
+      <button class="nav-item active" onclick="showPage('dashboard',this)">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Dashboard
+      </button>
+      <div class="nav-section">Gestión</div>
+      <button class="nav-item" onclick="showPage('clientes',this)">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Clientes & Préstamos
+      </button>
+      <button class="nav-item" onclick="showPage('cobros',this)">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+        Cobros
+      </button>
+      <button class="nav-item" onclick="showPage('nuevo',this)">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+        Nuevo Préstamo
+      </button>
+      <button class="nav-item" onclick="showPage('reenganche',this)">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
+        Reenganche
+      </button>
+      <div class="nav-section" id="adminNav" style="display:none">Administración</div>
+      <button class="nav-item" id="navUsers" style="display:none" onclick="showPage('usuarios',this)">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        Usuarios
+      </button>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-avatar" id="sidebarAvatar">A</div>
+      <div>
+        <div class="user-name" id="sidebarName">Admin</div>
+        <div class="user-role" id="sidebarRole">Administrador</div>
+      </div>
+      <button class="btn-logout" onclick="doLogout()" title="Cerrar sesión">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="main-content">
+    <!-- DASHBOARD -->
+    <div class="page active" id="pg-dashboard">
+      <div class="page-header">
+        <h1>Dashboard</h1>
+        <p>Resumen general del sistema</p>
+      </div>
+      <div class="stats-grid" id="statsGrid"></div>
+      <div class="dash-row">
+        <div class="dash-card">
+          <h3>Cobros por Frecuencia Hoy</h3>
+          <div id="cobrosFrecuencia"></div>
+        </div>
+        <div class="dash-card">
+          <h3>Préstamos Activos vs Pagados</h3>
+          <div id="estadoPrestamos"></div>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <div class="table-head"><h3>Préstamos Recientes</h3></div>
+        <table>
+          <thead><tr><th>Cliente</th><th>Monto</th><th>Frecuencia</th><th>Cuota</th><th>Balance</th><th>Estado</th></tr></thead>
+          <tbody id="recentTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- CLIENTES -->
+    <div class="page" id="pg-clientes">
+      <div class="page-header">
+        <h1>Clientes &amp; Préstamos</h1>
+        <p>Gestión de todos los préstamos activos</p>
+      </div>
+      <div class="action-bar">
+        <input class="search-box" placeholder="🔍 Buscar cliente..." oninput="filterClientes(this.value)">
+        <select class="search-box" style="width:160px" onchange="filterEstadoCliente(this.value)">
+          <option value="todos">Todos</option>
+          <option value="aldia">✅ Al Día</option>
+          <option value="atrasado">⚠️ Atrasados</option>
+          <option value="pagado">✔ Pagados</option>
+        </select>
+        <button class="btn btn-gold" onclick="openModal('modalPrestamo')">+ Nuevo Préstamo</button>
+      </div>
+      <div class="table-wrap" style="overflow-x:auto">
+        <table style="min-width:1050px">
+          <thead>
+            <tr>
+              <th>CLIENTE</th>
+              <th>MONTO</th>
+              <th>INTERÉS</th>
+              <th>CUOTA</th>
+              <th>MODALIDAD</th>
+              <th>PAGO STATUS</th>
+              <th>MORA</th>
+              <th>IMPRIMIR</th>
+              <th>ESTADO</th>
+              <th class="admin-only" style="display:none">ELIMINAR</th>
+            </tr>
+          </thead>
+          <tbody id="clientesTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- COBROS -->
+    <div class="page" id="pg-cobros">
+      <div class="page-header">
+        <h1>Cobros</h1>
+        <p>Gestión de cobros por frecuencia</p>
+      </div>
+      <div class="cobros-filter">
+        <button class="filter-btn active" onclick="filterCobros('todos',this)">Todos</button>
+        <button class="filter-btn" onclick="filterCobros('diario',this)">Diario</button>
+        <button class="filter-btn" onclick="filterCobros('semanal',this)">Semanal</button>
+        <button class="filter-btn" onclick="filterCobros('mensual',this)">Mensual</button>
+      </div>
+      <div id="cobrosContainer"></div>
+    </div>
+
+    <!-- REENGANCHE -->
+    <div class="page" id="pg-reenganche">
+      <div class="page-header">
+        <h1>🔄 Reenganche</h1>
+        <p>Clientes con préstamos pagados listos para un nuevo préstamo</p>
+      </div>
+      <div class="action-bar">
+        <input class="search-box" placeholder="🔍 Buscar cliente..." oninput="filterReenganche(this.value)">
+      </div>
+      <div id="reenganchemContainer"></div>
+    </div>
+
+    <!-- NUEVO PRÉSTAMO -->
+    <div class="page" id="pg-nuevo">
+      <div class="page-header">
+        <h1>Nuevo Préstamo</h1>
+        <p>Registrar un nuevo préstamo</p>
+      </div>
+      <div style="max-width:600px">
+        <div style="background:var(--dark2);border:1px solid var(--border);border-radius:16px;padding:28px">
+          <div class="modal-grid">
+            <div class="field full">
+              <label>Nombre del Cliente</label>
+              <input type="text" id="np_nombre" placeholder="Ej: Juan Pérez García" oninput="calcNuevo()">
+            </div>
+            <div class="field full">
+              <label>Cédula (opcional)</label>
+              <input type="text" id="np_cedula" placeholder="000-0000000-0">
+            </div>
+            <div class="field">
+              <label>Monto Prestado (RD$)</label>
+              <input type="number" id="np_monto" placeholder="10,000" oninput="calcNuevo()">
+            </div>
+            <div class="field">
+              <label>Porcentaje de Interés (%)</label>
+              <input type="number" id="np_porciento" placeholder="20" step="0.5" oninput="calcNuevo()">
+            </div>
+            <div class="field">
+              <label>Frecuencia de Pago</label>
+              <select id="np_frecuencia" onchange="calcNuevo()">
+                <option value="diario">Diario</option>
+                <option value="semanal" selected>Semanal</option>
+                <option value="mensual">Mensual</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Número de Cuotas</label>
+              <input type="number" id="np_cuotas" placeholder="4" oninput="calcNuevo()">
+            </div>
+            <div class="field full">
+              <label>Fecha de Inicio</label>
+              <input type="date" id="np_fecha">
+            </div>
+          </div>
+          <div class="calc-panel" id="calcPanel" style="display:none">
+            <h4>📊 Cálculo del Préstamo</h4>
+            <table class="calc-table">
+              <thead><tr><th>Frecuencia</th><th>Cuota por Período</th><th>Períodos</th><th>Total a Cobrar</th></tr></thead>
+              <tbody id="calcBody"></tbody>
+            </table>
+          </div>
+          <div style="margin-top:20px;display:flex;gap:10px">
+            <button class="btn btn-gold" onclick="guardarPrestamo()" style="flex:1;padding:14px;font-size:15px">💾 Guardar Préstamo</button>
+            <button class="btn btn-outline" onclick="limpiarNuevo()">Limpiar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- USUARIOS -->
+    <div class="page" id="pg-usuarios">
+      <div class="page-header">
+        <h1>Usuarios del Sistema</h1>
+        <p>Gestión de accesos y privilegios</p>
+      </div>
+      <div class="action-bar">
+        <button class="btn btn-gold" onclick="abrirNuevoUsuario()">+ Nuevo Usuario</button>
+      </div>
+      <div id="usuariosList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PRÉSTAMO -->
+<div class="modal-overlay" id="modalPrestamo">
+  <div class="modal">
+    <h2>Nuevo Préstamo</h2>
+    <div class="modal-grid">
+      <div class="field full"><label>Nombre del Cliente</label><input type="text" id="m_nombre" placeholder="Nombre completo" oninput="calcModal()"></div>
+      <div class="field full"><label>Cédula</label><input type="text" id="m_cedula" placeholder="000-0000000-0"></div>
+      <div class="field"><label>Monto (RD$)</label><input type="number" id="m_monto" oninput="calcModal()"></div>
+      <div class="field"><label>Interés (%)</label><input type="number" id="m_porciento" placeholder="20" step="0.5" oninput="calcModal()"></div>
+      <div class="field"><label>Frecuencia</label>
+        <select id="m_frecuencia" onchange="calcModal()">
+          <option value="diario">Diario</option>
+          <option value="semanal" selected>Semanal</option>
+          <option value="mensual">Mensual</option>
+        </select>
+      </div>
+      <div class="field"><label>Número de Cuotas</label><input type="number" id="m_cuotas" placeholder="4" oninput="calcModal()"></div>
+      <div class="field full"><label>Fecha Inicio</label><input type="date" id="m_fecha"></div>
+    </div>
+    <div class="calc-panel" id="calcPanelModal" style="display:none">
+      <h4>📊 Resumen del Cálculo</h4>
+      <table class="calc-table">
+        <thead><tr><th>Frecuencia</th><th>Cuota por Período</th><th>Períodos</th><th>Total a Cobrar</th></tr></thead>
+        <tbody id="calcBodyModal"></tbody>
+      </table>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modalPrestamo')">Cancelar</button>
+      <button class="btn btn-gold" onclick="guardarPrestamoModal()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL USUARIO -->
+<div class="modal-overlay" id="modalUser">
+  <div class="modal">
+    <h2 id="modalUserTitle">Nuevo Usuario</h2>
+    <input type="hidden" id="u_edit_id" value="">
+    <div class="modal-grid">
+      <div class="field full"><label>Nombre Completo</label><input type="text" id="u_nombre" placeholder="Nombre completo"></div>
+      <div class="field"><label>Usuario</label><input type="text" id="u_user" placeholder="usuario123"></div>
+      <div class="field"><label>Contraseña <span id="u_pass_hint" style="color:var(--muted);font-size:10px;font-weight:400">(dejar vacío = no cambiar)</span></label><input type="password" id="u_pass" placeholder="••••••••"></div>
+      <div class="field full"><label>Rol / Privilegio</label>
+        <select id="u_role">
+          <option value="cajero">Cajero (puede registrar pagos)</option>
+          <option value="viewer">Solo lectura</option>
+          <option value="admin">Administrador (acceso total)</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modalUser')">Cancelar</button>
+      <button class="btn btn-gold" id="btnGuardarUser" onclick="guardarUsuario()">Crear Usuario</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL REENGANCHE -->
+<div class="modal-overlay" id="modalReenganche">
+  <div class="modal" style="width:540px">
+    <h2>🔄 Reenganche</h2>
+    <div id="reenganchemInfo" style="background:var(--dark3);border-radius:12px;padding:16px;margin-bottom:20px"></div>
+    <div style="background:rgba(200,168,75,0.08);border:1px solid rgba(200,168,75,0.2);border-radius:10px;padding:14px;margin-bottom:18px;font-size:13px;color:var(--gold)">
+      🔁 El cliente está solicitando un nuevo préstamo. Sus datos personales se mantienen. Solo ingresa el nuevo monto y condiciones.
+    </div>
+    <div class="modal-grid">
+      <div class="field">
+        <label>Nuevo Monto (RD$)</label>
+        <input type="number" id="re_monto" placeholder="0.00" oninput="calcReenganche()">
+      </div>
+      <div class="field">
+        <label>Porcentaje de Interés (%)</label>
+        <input type="number" id="re_porciento" placeholder="12" step="0.5" oninput="calcReenganche()">
+      </div>
+      <div class="field">
+        <label>Número de Cuotas</label>
+        <input type="number" id="re_cuotas" placeholder="12" oninput="calcReenganche()">
+      </div>
+      <div class="field">
+        <label>Modalidad</label>
+        <select id="re_frecuencia" onchange="calcReenganche()">
+          <option value="diario">Diario</option>
+          <option value="semanal" selected>Semanal</option>
+          <option value="mensual">Mensual</option>
+        </select>
+      </div>
+      <div class="field full">
+        <label>Fecha de Inicio</label>
+        <input type="date" id="re_fecha">
+      </div>
+    </div>
+    <div id="reCalcPanel" style="display:none;background:var(--dark3);border-radius:12px;padding:16px;margin-top:4px">
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">📊 Resumen del Nuevo Préstamo</div>
+      <table class="calc-table">
+        <thead><tr><th>Frecuencia</th><th>Cuota por Período</th><th>Períodos</th><th>Total a Cobrar</th></tr></thead>
+        <tbody id="reCalcBody"></tbody>
+      </table>
+    </div>
+    <div class="modal-footer" style="margin-top:18px">
+      <button class="btn btn-outline" onclick="closeModal('modalReenganche')">Cancelar</button>
+      <button class="btn btn-gold" onclick="confirmarReenganche()" style="font-size:15px;padding:12px 24px">🔄 Confirmar Reenganche</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDITAR PRÉSTAMO -->
+<div class="modal-overlay" id="modalEditPrestamo">
+  <div class="modal" style="width:540px">
+    <h2>✏️ Editar Préstamo</h2>
+    <div id="editPrestamoInfo" style="background:var(--dark3);border-radius:10px;padding:14px;margin-bottom:18px;font-size:13px;color:var(--muted)">
+      ⚠️ Los cambios se aplican al préstamo activo. El balance se recalculará automáticamente.
+    </div>
+    <input type="hidden" id="ep_id">
+    <div class="modal-grid">
+      <div class="field full"><label>Nombre del Cliente</label><input type="text" id="ep_nombre" placeholder="Nombre completo"></div>
+      <div class="field full"><label>Cédula</label><input type="text" id="ep_cedula" placeholder="000-0000000-0"></div>
+      <div class="field"><label>Monto Prestado (RD$)</label><input type="number" id="ep_monto" oninput="calcEditPrestamo()"></div>
+      <div class="field"><label>Porcentaje de Interés (%)</label><input type="number" id="ep_porciento" step="0.5" oninput="calcEditPrestamo()"></div>
+      <div class="field"><label>Número de Cuotas</label><input type="number" id="ep_cuotas" oninput="calcEditPrestamo()"></div>
+      <div class="field"><label>Modalidad</label>
+        <select id="ep_frecuencia" onchange="calcEditPrestamo()">
+          <option value="diario">Diario</option>
+          <option value="semanal">Semanal</option>
+          <option value="mensual">Mensual</option>
+        </select>
+      </div>
+      <div class="field full"><label>Fecha de Inicio</label><input type="date" id="ep_fecha"></div>
+    </div>
+    <div id="epCalcPanel" style="display:none;background:var(--dark3);border-radius:12px;padding:14px;margin-top:6px">
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">📊 Nuevo Cálculo</div>
+      <table class="calc-table">
+        <thead><tr><th>Frecuencia</th><th>Cuota por Período</th><th>Períodos</th><th>Total a Cobrar</th></tr></thead>
+        <tbody id="epCalcBody"></tbody>
+      </table>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modalEditPrestamo')">Cancelar</button>
+      <button class="btn btn-gold" onclick="guardarEditPrestamo()" style="padding:12px 24px">💾 Guardar Cambios</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DESGLOSE -->
+<div class="modal-overlay" id="modalDesglose">
+  <div class="modal" style="width:620px">
+    <div id="desgloseContent"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modalDesglose')">Cerrar</button>
+      <button class="btn btn-gold" onclick="window.print()">🖨️ Imprimir</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PAGO -->
+<div class="modal-overlay" id="modalPago">
+  <div class="modal" style="width:480px">
+    <h2>💳 Registrar Pago</h2>
+    <div id="pagoClienteInfo" style="background:var(--dark3);border-radius:12px;padding:16px;margin-bottom:20px"></div>
+    <div class="modal-grid">
+      <div class="field full">
+        <label>Monto a Pagar (RD$)</label>
+        <input type="number" id="pago_monto" placeholder="0.00" oninput="calcPagoPreview()" style="font-size:20px;font-weight:700;color:var(--gold)">
+      </div>
+      <div class="field full">
+        <label>Nota (opcional)</label>
+        <input type="text" id="pago_nota" placeholder="Ej: Pago semana 1, abono, etc.">
+      </div>
+    </div>
+    <div id="pagoPreview" style="display:none;background:var(--dark3);border-radius:12px;padding:16px;margin-top:16px">
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">Resumen del Pago</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div><div style="font-size:11px;color:var(--muted)">Balance Actual</div><div id="prev_balanceAntes" style="font-weight:700;font-size:16px;color:var(--text);margin-top:3px"></div></div>
+        <div><div style="font-size:11px;color:var(--muted)">Pago Aplicado</div><div id="prev_pago" style="font-weight:700;font-size:16px;color:var(--green);margin-top:3px"></div></div>
+        <div><div style="font-size:11px;color:var(--muted)">Nuevo Balance</div><div id="prev_balanceDespues" style="font-weight:700;font-size:18px;margin-top:3px"></div></div>
+        <div><div style="font-size:11px;color:var(--muted)">Estado tras pago</div><div id="prev_estado" style="margin-top:3px"></div></div>
+      </div>
+    </div>
+    <div id="pagoError" style="display:none;color:var(--red);font-size:13px;margin-top:10px;padding:10px;background:rgba(231,76,60,.1);border-radius:8px"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modalPago')">Cancelar</button>
+      <button class="btn btn-gold" onclick="confirmarPago()" style="font-size:15px;padding:12px 24px">✅ Confirmar Pago</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// Set creation date on load
+document.addEventListener('DOMContentLoaded', function() {
+  const KEY = 'rym_created_date';
+  let fecha = localStorage.getItem(KEY);
+  if (!fecha) {
+    fecha = new Date().toLocaleDateString('es-DO', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
+    localStorage.setItem(KEY, fecha);
+  }
+  const el = document.getElementById('fechaCreacion');
+  if (el) el.textContent = 'Sistema creado el ' + fecha;
+});
+
+// ============== DATA & STATE ==============
+const STORE_KEY = 'rym_data';
+let currentUser = null;
+let cobrosFilter = 'todos';
+
+function loadData() {
+  const d = localStorage.getItem(STORE_KEY);
+  if (d) return JSON.parse(d);
+  // Seed with sample data from the Excel
+  const seed = {
+    users: [
+      { id:1, nombre:'Administrador', user:'admin', pass:'admin123', role:'admin' }
+    ],
+    prestamos: [
+      { id:1, nombre:'CARMEN S REYES', cedula:'076-0006399-9', monto:11000, porciento:25, frecuencia:'semanal', cuotas:4, totalPagar:13750, cuota:3437.50, balance:11000, totalPagado:0, fechaInicio:'2026-01-01', estado:'activo' },
+      { id:2, nombre:'MAN MAT GONZ', cedula:'076-0019277-2', monto:5400, porciento:10, frecuencia:'semanal', cuotas:12, totalPagar:5940, cuota:495, balance:4950, totalPagado:450, fechaInicio:'2026-04-01', estado:'activo' },
+      { id:3, nombre:'ROBERT GONZ', cedula:'048-0048337-4', monto:8856, porciento:12, frecuencia:'semanal', cuotas:12, totalPagar:9919, cuota:826.58, balance:8116, totalPagado:740, fechaInicio:'2026-05-04', estado:'activo' },
+      { id:4, nombre:'ELSA MARTINEZ', cedula:'076-0017709-6', monto:7500, porciento:10, frecuencia:'mensual', cuotas:3, totalPagar:8250, cuota:2750, balance:3800, totalPagado:3700, fechaInicio:'2026-03-24', estado:'activo' },
+      { id:5, nombre:'NORINEL CESPEDES', cedula:'', monto:5000, porciento:25, frecuencia:'diario', cuotas:30, totalPagar:6250, cuota:208.33, balance:5000, totalPagado:0, fechaInicio:'2026-04-27', estado:'activo' },
+    ],
+    nextId: 10
+  };
+  saveData(seed);
+  return seed;
+}
+function saveData(d) { localStorage.setItem(STORE_KEY, JSON.stringify(d)); }
+function getData() { return loadData(); }
+
+// ============== CALC ENGINE ==============
+// Fórmula real: cuota = monto × (porciento/100)
+// Total = cuota × num_cuotas
+// Ejemplo: 6,150 a 12% por 12 semanas → cuota semanal = 738 → total = 8,856
+function calcPrestamo(monto, porciento, cuotas, frecuencia) {
+  const rate = porciento / 100;
+
+  // Cuota y total según la frecuencia seleccionada
+  const cuotaBase = monto * rate;
+  const total = cuotaBase * cuotas;
+  const interest = total - monto;
+
+  // Convertir cuotas a días para calcular equivalentes
+  const dias = frecuencia === 'diario' ? cuotas
+              : frecuencia === 'semanal' ? cuotas * 7
+              : cuotas * 30;
+
+  // Cuotas equivalentes en cada frecuencia
+  const cuotasDiario   = dias;
+  const cuotasSemanal  = Math.round(dias / 7);
+  const cuotasMensual  = Math.round(dias / 30) || 1;
+
+  // Cuota diaria: monto × (rate/7) × dias / dias  → rate diario = rate_semanal/7
+  // La regla es: cuota por periodo = monto × tasa_por_periodo
+  // tasa diaria   = rate / 7   (si el rate original es semanal)
+  // tasa mensual  = rate × 4.333 (semanas en un mes)
+  let rateDiario, rateSemanal, rateMensual;
+  if (frecuencia === 'semanal') {
+    rateSemanal = rate;
+    rateDiario  = rate / 7;
+    rateMensual = rate * (30 / 7);
+  } else if (frecuencia === 'diario') {
+    rateDiario  = rate;
+    rateSemanal = rate * 7;
+    rateMensual = rate * 30;
+  } else { // mensual
+    rateMensual = rate;
+    rateSemanal = rate / (30 / 7);
+    rateDiario  = rate / 30;
+  }
+
+  return {
+    cuota:    cuotaBase,
+    total:    total,
+    interest: interest,
+    diario:   { cuotas: cuotasDiario,  cuota: monto * rateDiario,  total: monto * rateDiario  * cuotasDiario  },
+    semanal:  { cuotas: cuotasSemanal, cuota: monto * rateSemanal, total: monto * rateSemanal * cuotasSemanal },
+    mensual:  { cuotas: cuotasMensual, cuota: monto * rateMensual, total: monto * rateMensual * cuotasMensual },
+  };
+}
+
+function fmt(n) { return 'RD$ ' + Number(n).toLocaleString('es-DO', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+function fmtN(n) { return Number(n).toLocaleString('es-DO', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+
+function renderCalcTable(calc, bodyId) {
+  const tbody = document.getElementById(bodyId);
+  tbody.innerHTML = `
+    <tr style="background:rgba(200,168,75,0.05)">
+      <td><span class="badge diario">Diario</span></td>
+      <td class="highlight">${fmt(calc.diario.cuota)}</td>
+      <td style="color:var(--muted);font-size:12px">× ${calc.diario.cuotas} días</td>
+      <td style="color:var(--gold);font-weight:700">${fmt(calc.diario.total)}</td>
+    </tr>
+    <tr style="background:rgba(46,204,113,0.05)">
+      <td><span class="badge active">Semanal</span></td>
+      <td class="highlight" style="color:var(--green)">${fmt(calc.semanal.cuota)}</td>
+      <td style="color:var(--muted);font-size:12px">× ${calc.semanal.cuotas} semanas</td>
+      <td style="color:var(--green);font-weight:700">${fmt(calc.semanal.total)}</td>
+    </tr>
+    <tr style="background:rgba(52,152,219,0.05)">
+      <td><span class="badge pagado">Mensual</span></td>
+      <td class="highlight" style="color:var(--blue)">${fmt(calc.mensual.cuota)}</td>
+      <td style="color:var(--muted);font-size:12px">× ${calc.mensual.cuotas} meses</td>
+      <td style="color:var(--blue);font-weight:700">${fmt(calc.mensual.total)}</td>
+    </tr>
+  `;
+}
+
+// ============== LOGIN ==============
+function doLogin() {
+  const u = document.getElementById('loginUser').value.trim();
+  const p = document.getElementById('loginPass').value;
+  const data = getData();
+  const found = data.users.find(x => x.user === u && x.pass === p);
+  if (!found) {
+    document.getElementById('loginError').style.display = 'block';
+    return;
+  }
+  currentUser = found;
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appScreen').style.display = 'block';
+  document.getElementById('sidebarAvatar').textContent = found.nombre.charAt(0).toUpperCase();
+  document.getElementById('sidebarName').textContent = found.nombre;
+  document.getElementById('sidebarRole').textContent = found.role === 'admin' ? 'Administrador' : found.role === 'cajero' ? 'Cajero' : 'Solo Lectura';
+  if (found.role === 'admin') {
+    document.getElementById('adminNav').style.display = 'block';
+    document.getElementById('navUsers').style.display = 'flex';
+  }
+  // Set today as default date
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('np_fecha').value = today;
+  document.getElementById('m_fecha').value = today;
+  renderAll();
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.getElementById('loginScreen').style.display !== 'none') doLogin();
+});
+
+function doLogout() {
+  currentUser = null;
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('appScreen').style.display = 'none';
+  document.getElementById('loginUser').value = '';
+  document.getElementById('loginPass').value = '';
+  document.getElementById('loginError').style.display = 'none';
+}
+
+// ============== NAVIGATION ==============
+function showPage(name, el) {
+  // Solo admin puede ver la sección de usuarios
+  if (name === 'usuarios' && (!currentUser || currentUser.role !== 'admin')) {
+    toast('No tienes permiso para acceder a esta sección', 'error');
+    return;
+  }
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('pg-' + name).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  if (el) el.classList.add('active');
+  if (name === 'dashboard') renderDashboard();
+  if (name === 'clientes') renderClientes();
+  if (name === 'cobros') renderCobros();
+  if (name === 'reenganche') renderReenganche();
+  if (name === 'usuarios') renderUsuarios();
+}
+
+// ============== RENDER ALL ==============
+function renderAll() { renderDashboard(); renderClientes(); renderCobros(); renderReenganche(); }
+
+// ============== DASHBOARD ==============
+function renderDashboard() {
+  const data = getData();
+  const ps = data.prestamos;
+  const totalCartera = ps.reduce((a,p) => a + p.balance, 0);
+  const totalPrestado = ps.reduce((a,p) => a + p.monto, 0);
+  const activos = ps.filter(p => p.balance > 0).length;
+  const cobradoHoy = ps.reduce((a,p) => a + p.totalPagado, 0);
+
+  document.getElementById('statsGrid').innerHTML = `
+    <div class="stat-card gold">
+      <div class="stat-label">Cartera Total</div>
+      <div class="stat-value">${fmt(totalCartera)}</div>
+      <div class="stat-sub">Saldo pendiente</div>
+    </div>
+    <div class="stat-card green">
+      <div class="stat-label">Total Prestado</div>
+      <div class="stat-value">${fmt(totalPrestado)}</div>
+      <div class="stat-sub">${ps.length} préstamos</div>
+    </div>
+    <div class="stat-card blue">
+      <div class="stat-label">Préstamos Activos</div>
+      <div class="stat-value">${activos}</div>
+      <div class="stat-sub">Con balance pendiente</div>
+    </div>
+    <div class="stat-card red">
+      <div class="stat-label">Total Cobrado</div>
+      <div class="stat-value">${fmt(cobradoHoy)}</div>
+      <div class="stat-sub">Acumulado</div>
+    </div>
+  `;
+
+  const diarios = ps.filter(p => p.frecuencia === 'diario');
+  const semanales = ps.filter(p => p.frecuencia === 'semanal');
+  const mensuales = ps.filter(p => p.frecuencia === 'mensual');
+  const totD = diarios.reduce((a,p) => a + p.cuota, 0);
+  const totS = semanales.reduce((a,p) => a + p.cuota, 0);
+  const totM = mensuales.reduce((a,p) => a + p.cuota, 0);
+  const maxF = Math.max(totD, totS, totM) || 1;
+
+  document.getElementById('cobrosFrecuencia').innerHTML = `
+    <div class="prog-bar-wrap">
+      <div class="prog-label"><span><span class="badge diario">Diario</span> ${diarios.length} préstamos</span><span style="color:var(--gold)">${fmt(totD)}</span></div>
+      <div class="prog-bar"><div class="prog-fill" style="width:${totD/maxF*100}%;background:var(--gold)"></div></div>
+    </div>
+    <div class="prog-bar-wrap">
+      <div class="prog-label"><span><span class="badge active">Semanal</span> ${semanales.length} préstamos</span><span style="color:var(--green)">${fmt(totS)}</span></div>
+      <div class="prog-bar"><div class="prog-fill" style="width:${totS/maxF*100}%;background:var(--green)"></div></div>
+    </div>
+    <div class="prog-bar-wrap">
+      <div class="prog-label"><span><span class="badge pagado">Mensual</span> ${mensuales.length} préstamos</span><span style="color:var(--blue)">${fmt(totM)}</span></div>
+      <div class="prog-bar"><div class="prog-fill" style="width:${totM/maxF*100}%;background:var(--blue)"></div></div>
+    </div>
+  `;
+
+  const pagados = ps.filter(p => p.balance <= 0).length;
+  const actv = ps.filter(p => p.balance > 0).length;
+  const tot = ps.length || 1;
+  document.getElementById('estadoPrestamos').innerHTML = `
+    <div class="prog-bar-wrap">
+      <div class="prog-label"><span style="color:var(--green)">Activos</span><span>${actv} (${Math.round(actv/tot*100)}%)</span></div>
+      <div class="prog-bar"><div class="prog-fill" style="width:${actv/tot*100}%;background:var(--green)"></div></div>
+    </div>
+    <div class="prog-bar-wrap" style="margin-top:16px">
+      <div class="prog-label"><span style="color:var(--blue)">Pagados</span><span>${pagados} (${Math.round(pagados/tot*100)}%)</span></div>
+      <div class="prog-bar"><div class="prog-fill" style="width:${pagados/tot*100}%;background:var(--blue)"></div></div>
+    </div>
+    <div style="margin-top:20px;text-align:center">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:48px;color:var(--gold)">${ps.length}</div>
+      <div style="color:var(--muted);font-size:13px">Total de Préstamos Registrados</div>
+    </div>
+  `;
+
+  const tbody = document.getElementById('recentTable');
+  const recent = [...ps].slice(-8).reverse();
+  tbody.innerHTML = recent.map(p => `
+    <tr>
+      <td><strong>${p.nombre}</strong></td>
+      <td>${fmt(p.monto)}</td>
+      <td><span class="badge ${p.frecuencia}">${p.frecuencia}</span></td>
+      <td style="color:var(--gold)">${fmt(p.cuota)}</td>
+      <td>${fmt(p.balance)}</td>
+      <td><span class="badge ${p.balance<=0?'pagado':'active'}">${p.balance<=0?'Pagado':'Activo'}</span></td>
+    </tr>
+  `).join('');
+}
+
+// ============== CLIENTES ==============
+let clienteSearch = '';
+let clienteEstadoFilter = 'todos';
+function filterClientes(v) { clienteSearch = v.toLowerCase(); renderClientes(); }
+function filterEstadoCliente(v) { clienteEstadoFilter = v; renderClientes(); }
+
+// Calcula cuántos períodos han pasado desde la fecha de inicio
+function getPeriodosPasados(p) {
+  if (!p.fechaInicio) return 0;
+  const inicio = new Date(p.fechaInicio);
+  const hoy = new Date();
+  const diffMs = hoy - inicio;
+  const diffDias = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  if (p.frecuencia === 'diario')   return diffDias;
+  if (p.frecuencia === 'semanal')  return Math.floor(diffDias / 7);
+  if (p.frecuencia === 'mensual')  return Math.floor(diffDias / 30);
+  return 0;
+}
+
+// Determina el estado de pago del cliente
+function getPayStatus(p) {
+  if (p.balance <= 0) return { status: 'pagado', label: 'PAGADO', color: 'var(--blue)', mora: 0 };
+  const calc = calcPrestamo(p.monto, p.porciento, p.cuotas, p.frecuencia);
+  const cuota = p.frecuencia === 'diario' ? calc.diario.cuota
+              : p.frecuencia === 'semanal' ? calc.semanal.cuota : calc.mensual.cuota;
+  const cuotasPagadas = cuota > 0 ? Math.floor(p.totalPagado / cuota) : 0;
+  const periodosPasados = Math.min(getPeriodosPasados(p), p.cuotas);
+  const cuotasAtrasadas = Math.max(0, periodosPasados - cuotasPagadas);
+
+  if (cuotasAtrasadas === 0) {
+    return { status: 'aldia', label: 'AL DÍA', color: 'var(--green)', mora: 0, cuotasAtrasadas: 0, cuota };
+  } else {
+    // Mora = recargo del mismo % sobre cada cuota atrasada (ADICIONAL)
+    // Fórmula: cuota × porciento% × cuotas_atrasadas
+    // Ej: cuota=738, 12%, 2 semanas → mora = 738 × 0.12 × 2 = 177.12 RD$ EXTRA
+    const mora = cuota * (p.porciento / 100) * cuotasAtrasadas;
+    const cuotasDeuda = cuota * cuotasAtrasadas;   // lo que debe por semanas/días/meses vencidos
+    const totalConMora = cuotasDeuda + mora;        // total incluyendo recargo
+    return { status: 'atrasado', label: `ATRASADO (${cuotasAtrasadas})`, color: 'var(--red)', mora, cuotasAtrasadas, cuota, cuotasDeuda, totalConMora };
+  }
+}
+
+function renderClientes() {
+  const data = getData();
+  let ps = data.prestamos;
+  if (clienteSearch) ps = ps.filter(p => p.nombre.toLowerCase().includes(clienteSearch) || (p.cedula||'').includes(clienteSearch));
+  if (clienteEstadoFilter !== 'todos') {
+    ps = ps.filter(p => {
+      const st = getPayStatus(p);
+      return st.status === clienteEstadoFilter;
+    });
+  }
+  const isAdmin = currentUser && currentUser.role === 'admin';
+  const tbody = document.getElementById('clientesTable');
+  // Show/hide admin col
+  document.querySelectorAll('.admin-only').forEach(el => el.style.display = isAdmin ? '' : 'none');
+
+  if (!ps.length) {
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:40px;color:var(--muted)">No se encontraron préstamos</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = ps.map(p => {
+    const calc = calcPrestamo(p.monto, p.porciento, p.cuotas, p.frecuencia);
+    const cuota = p.frecuencia === 'diario' ? calc.diario.cuota
+                : p.frecuencia === 'semanal' ? calc.semanal.cuota : calc.mensual.cuota;
+    const ps2 = getPayStatus(p);
+
+    let statusCell;
+    if (ps2.status === 'pagado') {
+      statusCell = `<span class="badge pagado" style="font-size:11px">✔ PAGADO</span>`;
+    } else if (ps2.status === 'aldia') {
+      statusCell = `<span class="badge active" style="font-size:11px;background:rgba(46,204,113,.15);color:var(--green)">✅ AL DÍA</span>`;
+    } else {
+      statusCell = `<div>
+        <span class="badge vencido" style="font-size:11px;background:rgba(231,76,60,.15);color:var(--red)">⚠ ATRASADO</span>
+        <div style="font-size:10px;color:var(--red);margin-top:3px">${ps2.cuotasAtrasadas} cuota(s)</div>
+      </div>`;
+    }
+
+    const moraCell = ps2.mora > 0
+      ? `<div style="color:var(--red);font-weight:700">${fmt(ps2.mora)}</div>
+         <div style="font-size:10px;color:var(--muted);margin-top:2px">${fmt(ps2.cuota)} × ${p.porciento}% × ${ps2.cuotasAtrasadas} sem.</div>
+         <div style="font-size:11px;color:#ff8c69;font-weight:600;margin-top:3px">Total c/mora: ${fmt(ps2.totalConMora)}</div>`
+      : `<span style="color:var(--muted)">—</span>`;
+
+    const estadoLoan = p.balance <= 0
+      ? `<div style="display:flex;flex-direction:column;gap:5px">
+           <span class="badge pagado" style="text-align:center">✔ Completado</span>
+           <button class="btn btn-gold" style="padding:6px 10px;font-size:11px;letter-spacing:1px" onclick="abrirReenganche(${p.id})">🔄 Reenganche</button>
+         </div>`
+      : `<div><span class="badge active">Activo</span><div style="font-size:11px;color:var(--muted);margin-top:3px">${fmt(p.balance)} pendiente</div></div>`;
+
+    return `<tr style="${ps2.status === 'atrasado' ? 'background:rgba(231,76,60,0.04)' : ''}">
+      <td>
+        <div style="font-weight:700;font-size:14px">${p.nombre}</div>
+        <div style="font-size:11px;color:var(--muted)">${p.cedula||'Sin cédula'}</div>
+      </td>
+      <td style="font-weight:600">${fmt(p.monto)}</td>
+      <td style="color:var(--gold);font-weight:700;font-size:16px">${p.porciento}%</td>
+      <td>
+        <div style="color:var(--gold);font-weight:700">${fmt(cuota)}</div>
+        <div style="font-size:10px;color:var(--muted)">por ${p.frecuencia === 'diario' ? 'día' : p.frecuencia === 'semanal' ? 'semana' : 'mes'}</div>
+      </td>
+      <td><span class="badge ${p.frecuencia}" style="font-size:12px;padding:5px 12px">${p.frecuencia.toUpperCase()}</span></td>
+      <td>${statusCell}</td>
+      <td>${moraCell}</td>
+      <td style="display:flex;flex-direction:column;gap:5px;border:none">
+        <button class="btn btn-green" style="padding:7px 12px;font-size:12px;width:100%" onclick="abrirPago(${p.id})">💰 Registrar Pago</button>
+        <button class="btn btn-blue" style="padding:7px 12px;font-size:12px;width:100%" onclick="verDesglose(${p.id})">🖨️ Ver/Imprimir</button>
+        ${isAdmin && p.balance > 0 ? `<button class="btn btn-outline" style="padding:7px 12px;font-size:12px;width:100%;border-color:var(--gold);color:var(--gold)" onclick="editarPrestamo(${p.id})">✏️ Editar</button>` : ''}
+      </td>
+      <td>${estadoLoan}</td>
+      ${isAdmin ? `<td><button class="btn btn-red" style="padding:7px 10px;font-size:12px" onclick="eliminarPrestamo(${p.id})">🗑️ Eliminar</button></td>` : '<td style="display:none"></td>'}
+    </tr>`;
+  }).join('');
+}
+
+function eliminarPrestamo(id) {
+  if (!confirm('¿Eliminar este préstamo? Esta acción no se puede deshacer.')) return;
+  const data = getData();
+  data.prestamos = data.prestamos.filter(p => p.id !== id);
+  saveData(data);
+  renderAll();
+  toast('Préstamo eliminado', 'error');
+}
+
+// ============== COBROS ==============
+function filterCobros(f, el) {
+  cobrosFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  renderCobros();
+}
+
+function renderCobros() {
+  const data = getData();
+  let ps = data.prestamos.filter(p => p.balance > 0);
+  if (cobrosFilter !== 'todos') ps = ps.filter(p => p.frecuencia === cobrosFilter);
+  const container = document.getElementById('cobrosContainer');
+  if (!ps.length) {
+    container.innerHTML = `<div class="empty-state"><svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg><p>No hay cobros pendientes</p></div>`;
+    return;
+  }
+  container.innerHTML = ps.map(p => {
+    const calc = calcPrestamo(p.monto, p.porciento, p.cuotas, p.frecuencia);
+    const cuota = p.frecuencia === 'diario' ? calc.diario.cuota : p.frecuencia === 'semanal' ? calc.semanal.cuota : calc.mensual.cuota;
+    return `
+    <div class="pago-row">
+      <div class="user-avatar" style="flex-shrink:0">${p.nombre.charAt(0)}</div>
+      <div class="pago-info">
+        <div class="pago-name">${p.nombre}</div>
+        <div class="pago-meta">${p.cedula||'Sin cédula'} • <span class="badge ${p.frecuencia}">${p.frecuencia}</span> • ${p.porciento}% interés</div>
+      </div>
+      <div>
+        <div style="text-align:center">
+          <div style="font-size:11px;color:var(--muted)">Pago Diario</div>
+          <div style="color:var(--gold);font-weight:700">${fmt(calc.diario.cuota)}</div>
+        </div>
+      </div>
+      <div>
+        <div style="text-align:center">
+          <div style="font-size:11px;color:var(--muted)">Pago Semanal</div>
+          <div style="color:var(--green);font-weight:700">${fmt(calc.semanal.cuota)}</div>
+        </div>
+      </div>
+      <div>
+        <div style="text-align:center">
+          <div style="font-size:11px;color:var(--muted)">Pago Mensual</div>
+          <div style="color:var(--blue);font-weight:700">${fmt(calc.mensual.cuota)}</div>
+        </div>
+      </div>
+      <div class="pago-amounts">
+        <div class="pago-main">${fmt(p.balance)}</div>
+        <div class="pago-freq">Balance pendiente</div>
+      </div>
+      <button class="btn btn-green" style="font-size:12px;padding:8px 12px" onclick="verDesglose(${p.id})">📋 Ver</button>
+    </div>`;
+  }).join('');
+}
+
+// ============== NUEVO PRÉSTAMO ==============
+function calcNuevo() {
+  const monto = parseFloat(document.getElementById('np_monto').value);
+  const porc = parseFloat(document.getElementById('np_porciento').value);
+  const cuotas = parseInt(document.getElementById('np_cuotas').value);
+  const frec = document.getElementById('np_frecuencia').value;
+  if (!monto || !porc || !cuotas) { document.getElementById('calcPanel').style.display='none'; return; }
+  const calc = calcPrestamo(monto, porc, cuotas, frec);
+  document.getElementById('calcPanel').style.display = 'block';
+  renderCalcTable(calc, 'calcBody');
+}
+
+function calcModal() {
+  const monto = parseFloat(document.getElementById('m_monto').value);
+  const porc = parseFloat(document.getElementById('m_porciento').value);
+  const cuotas = parseInt(document.getElementById('m_cuotas').value);
+  const frec = document.getElementById('m_frecuencia').value;
+  if (!monto || !porc || !cuotas) { document.getElementById('calcPanelModal').style.display='none'; return; }
+  const calc = calcPrestamo(monto, porc, cuotas, frec);
+  document.getElementById('calcPanelModal').style.display = 'block';
+  renderCalcTable(calc, 'calcBodyModal');
+}
+
+function buildPrestamo(nombre, cedula, monto, porc, cuotas, frec, fecha) {
+  const calc = calcPrestamo(monto, porc, cuotas, frec);
+  const cuota = frec === 'diario' ? calc.diario.cuota : frec === 'semanal' ? calc.semanal.cuota : calc.mensual.cuota;
+  const total = frec === 'diario' ? calc.diario.total : frec === 'semanal' ? calc.semanal.total : calc.mensual.total;
+  const data = getData();
+  const p = {
+    id: data.nextId++,
+    nombre, cedula, monto, porciento: porc, frecuencia: frec,
+    cuotas, totalPagar: total, cuota,
+    balance: total, totalPagado: 0,
+    fechaInicio: fecha, estado: 'activo'
+  };
+  data.prestamos.push(p);
+  saveData(data);
+  return p;
+}
+
+function guardarPrestamo() {
+  const nombre = document.getElementById('np_nombre').value.trim();
+  const cedula = document.getElementById('np_cedula').value.trim();
+  const monto = parseFloat(document.getElementById('np_monto').value);
+  const porc = parseFloat(document.getElementById('np_porciento').value);
+  const cuotas = parseInt(document.getElementById('np_cuotas').value);
+  const frec = document.getElementById('np_frecuencia').value;
+  const fecha = document.getElementById('np_fecha').value;
+  if (!nombre || !monto || !porc || !cuotas) { toast('Complete todos los campos requeridos','error'); return; }
+  buildPrestamo(nombre, cedula, monto, porc, cuotas, frec, fecha);
+  limpiarNuevo();
+  toast('Préstamo registrado exitosamente','success');
+  renderAll();
+}
+
+function guardarPrestamoModal() {
+  const nombre = document.getElementById('m_nombre').value.trim();
+  const cedula = document.getElementById('m_cedula').value.trim();
+  const monto = parseFloat(document.getElementById('m_monto').value);
+  const porc = parseFloat(document.getElementById('m_porciento').value);
+  const cuotas = parseInt(document.getElementById('m_cuotas').value);
+  const frec = document.getElementById('m_frecuencia').value;
+  const fecha = document.getElementById('m_fecha').value;
+  if (!nombre || !monto || !porc || !cuotas) { toast('Complete todos los campos','error'); return; }
+  buildPrestamo(nombre, cedula, monto, porc, cuotas, frec, fecha);
+  closeModal('modalPrestamo');
+  toast('Préstamo registrado','success');
+  renderAll();
+}
+
+function limpiarNuevo() {
+  ['np_nombre','np_cedula','np_monto','np_porciento','np_cuotas'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('calcPanel').style.display='none';
+}
+
+// ============== DESGLOSE ==============
+function verDesglose(id) {
+  const data = getData();
+  const p = data.prestamos.find(x => x.id === id);
+  if (!p) return;
+  const calc = calcPrestamo(p.monto, p.porciento, p.cuotas, p.frecuencia);
+  const cuotaUsada = p.frecuencia === 'diario' ? calc.diario.cuota
+                   : p.frecuencia === 'semanal' ? calc.semanal.cuota : calc.mensual.cuota;
+  const cuotasPagadas = cuotaUsada > 0 ? Math.floor(p.totalPagado / cuotaUsada) : 0;
+  const pct = Math.min(100, Math.round(p.totalPagado / p.totalPagar * 100));
+  const payStatus = getPayStatus(p);
+  const hoy = new Date().toLocaleDateString('es-DO', {day:'2-digit',month:'long',year:'numeric'});
+
+  let rows = '';
+  for (let i = 1; i <= p.cuotas; i++) {
+    const paid = i <= cuotasPagadas;
+    const periPasado = i <= getPeriodosPasados(p);
+    const atrasada = periPasado && !paid;
+    rows += `<tr style="${atrasada ? 'background:rgba(231,76,60,0.08)' : ''}">
+      <td style="color:var(--muted);font-weight:600">${i}</td>
+      <td>${fmt(cuotaUsada)}</td>
+      <td>${paid ? `<span style="color:var(--green)">${fmt(cuotaUsada)}</span>` : `<span style="color:var(--muted)">—</span>`}</td>
+      <td>${fmt(Math.max(0, p.totalPagar - cuotaUsada * i))}</td>
+      <td>
+        ${paid ? `<span class="badge pagado">✔ Pagado</span>`
+               : atrasada ? `<span class="badge vencido">⚠ Atrasado</span>`
+               : `<span class="badge active">Pendiente</span>`}
+      </td>
+    </tr>`;
+  }
+
+  const moraBlock = payStatus.mora > 0 ? `
+    <div style="background:rgba(231,76,60,0.1);border:1px solid rgba(231,76,60,0.3);border-radius:12px;padding:16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div style="color:var(--red);font-weight:700;font-size:15px">⚠️ MORA POR ATRASO</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px">${fmt(payStatus.cuota)} × ${p.porciento}% × ${payStatus.cuotasAtrasadas} cuota(s) vencida(s)</div>
+        <div style="font-size:12px;color:var(--text);margin-top:6px">Cuotas vencidas: <strong style="color:var(--red)">${fmt(payStatus.cuotasDeuda)}</strong> + Recargo: <strong style="color:var(--red)">${fmt(payStatus.mora)}</strong> = <strong style="color:#ff4444">${fmt(payStatus.totalConMora)}</strong></div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:var(--red)">${fmt(payStatus.mora)}</div>
+        <div style="font-size:11px;color:var(--muted)">Total mora acumulada</div>
+      </div>
+    </div>` : '';
+
+  document.getElementById('desgloseContent').innerHTML = `
+    <div style="text-align:center;margin-bottom:4px">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:3px;color:var(--gold)">RYM SOLUCIONES</div>
+      <div style="font-size:11px;color:var(--muted)">AGENCIA DE PRÉSTAMOS • ${hoy}</div>
+    </div>
+    <div style="border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:16px 0;margin:14px 0">
+      <div class="desglose-header" style="margin-bottom:0">
+        <div class="desglose-avatar">${p.nombre.charAt(0)}</div>
+        <div style="flex:1">
+          <div class="desglose-name">${p.nombre}</div>
+          <div class="desglose-id">Cédula: ${p.cedula||'N/A'} &nbsp;•&nbsp; Préstamo #${p.id} &nbsp;•&nbsp; Inicio: ${p.fechaInicio||'N/A'}</div>
+        </div>
+        <div style="text-align:right">
+          ${payStatus.status === 'aldia'
+            ? `<span class="badge active" style="font-size:13px;padding:8px 14px">✅ AL DÍA</span>`
+            : payStatus.status === 'atrasado'
+            ? `<span class="badge vencido" style="font-size:13px;padding:8px 14px">⚠ ATRASADO</span>`
+            : `<span class="badge pagado" style="font-size:13px;padding:8px 14px">✔ PAGADO</span>`}
+        </div>
+      </div>
+    </div>
+    <div class="desglose-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px">
+      <div class="d-card"><div class="d-label">Monto Prestado</div><div class="d-value" style="color:var(--gold)">${fmt(p.monto)}</div></div>
+      <div class="d-card"><div class="d-label">Interés</div><div class="d-value" style="color:var(--red)">${p.porciento}%</div></div>
+      <div class="d-card"><div class="d-label">Modalidad</div><div class="d-value" style="font-size:16px;text-transform:uppercase">${p.frecuencia}</div></div>
+      <div class="d-card"><div class="d-label">Cuota ${p.frecuencia === 'diario' ? 'Diaria' : p.frecuencia === 'semanal' ? 'Semanal' : 'Mensual'}</div><div class="d-value" style="color:var(--gold)">${fmt(cuotaUsada)}</div></div>
+      <div class="d-card"><div class="d-label">Total a Pagar</div><div class="d-value">${fmt(p.totalPagar)}</div></div>
+      <div class="d-card"><div class="d-label">Nº Cuotas</div><div class="d-value">${p.cuotas}</div></div>
+      <div class="d-card"><div class="d-label">Total Pagado</div><div class="d-value" style="color:var(--green)">${fmt(p.totalPagado)}</div></div>
+      <div class="d-card"><div class="d-label">Balance</div><div class="d-value" style="color:var(--red)">${fmt(p.balance)}</div></div>
+      <div class="d-card"><div class="d-label">Progreso</div>
+        <div class="d-value" style="color:var(--blue)">${pct}%</div>
+        <div style="background:var(--dark4);border-radius:4px;height:6px;margin-top:6px"><div style="background:var(--blue);height:100%;border-radius:4px;width:${pct}%"></div></div>
+      </div>
+    </div>
+    ${moraBlock}
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;background:var(--dark3);border-radius:10px;padding:14px">
+      <div style="text-align:center"><div style="font-size:10px;color:var(--muted);text-transform:uppercase">Pago Diario</div><div style="color:var(--gold);font-weight:700;font-size:15px;margin-top:4px">${fmt(calc.diario.cuota)}</div></div>
+      <div style="text-align:center;border-left:1px solid var(--border);border-right:1px solid var(--border)"><div style="font-size:10px;color:var(--muted);text-transform:uppercase">Pago Semanal</div><div style="color:var(--green);font-weight:700;font-size:15px;margin-top:4px">${fmt(calc.semanal.cuota)}</div></div>
+      <div style="text-align:center"><div style="font-size:10px;color:var(--muted);text-transform:uppercase">Pago Mensual</div><div style="color:var(--blue);font-weight:700;font-size:15px;margin-top:4px">${fmt(calc.mensual.cuota)}</div></div>
+    </div>
+    <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Plan de Pagos (${p.frecuencia})</div>
+    <table class="desglose-table">
+      <thead><tr><th>Cuota #</th><th>Monto</th><th>Pagado</th><th>Balance</th><th>Estado</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);text-align:center;font-size:11px;color:var(--muted)">
+      RYM Soluciones — Documento generado el ${hoy}
+    </div>
+  `;
+
+  // Append payment history if any
+  if (p.historialPagos && p.historialPagos.length > 0) {
+    const histRows = p.historialPagos.map((h, i) => `
+      <tr>
+        <td style="color:var(--muted)">${i+1}</td>
+        <td>${h.fecha}</td>
+        <td style="color:var(--green);font-weight:700">${fmt(h.monto)}</td>
+        <td>${h.nota||'—'}</td>
+        <td style="color:var(--gold)">${fmt(h.balanceTras)}</td>
+      </tr>`).join('');
+    document.getElementById('desgloseContent').innerHTML += `
+      <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px">
+        <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">📋 Historial de Pagos (${p.historialPagos.length} transacciones)</div>
+        <table class="desglose-table">
+          <thead><tr><th>#</th><th>Fecha</th><th>Monto</th><th>Nota</th><th>Balance Tras</th></tr></thead>
+          <tbody>${histRows}</tbody>
+        </table>
+      </div>`;
+  }
+  openModal('modalDesglose');
+}
+
+// ============== PAGOS ==============
+let pagoPrestamoId = null;
+
+function abrirPago(id) {
+  const data = getData();
+  const p = data.prestamos.find(x => x.id === id);
+  if (!p) return;
+  if (p.balance <= 0) { toast('Este préstamo ya está pagado completamente','error'); return; }
+  pagoPrestamoId = id;
+  const calc = calcPrestamo(p.monto, p.porciento, p.cuotas, p.frecuencia);
+  const cuota = p.frecuencia === 'diario' ? calc.diario.cuota
+              : p.frecuencia === 'semanal' ? calc.semanal.cuota : calc.mensual.cuota;
+  const payStatus = getPayStatus(p);
+
+  document.getElementById('pagoClienteInfo').innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+      <div class="user-avatar">${p.nombre.charAt(0)}</div>
+      <div>
+        <div style="font-weight:700;font-size:15px">${p.nombre}</div>
+        <div style="font-size:12px;color:var(--muted)">${p.cedula||'Sin cédula'} • ${p.frecuencia.toUpperCase()}</div>
+      </div>
+      <div style="margin-left:auto">
+        ${payStatus.status === 'atrasado' ? `<span class="badge vencido">⚠ ATRASADO</span>` : `<span class="badge active">✅ AL DÍA</span>`}
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+      <div style="text-align:center;background:var(--dark4);border-radius:8px;padding:10px">
+        <div style="font-size:10px;color:var(--muted)">CUOTA ${p.frecuencia.toUpperCase()}</div>
+        <div style="color:var(--gold);font-weight:700;font-size:15px;margin-top:4px">${fmt(cuota)}</div>
+      </div>
+      <div style="text-align:center;background:var(--dark4);border-radius:8px;padding:10px">
+        <div style="font-size:10px;color:var(--muted)">BALANCE</div>
+        <div style="color:var(--red);font-weight:700;font-size:15px;margin-top:4px">${fmt(p.balance)}</div>
+      </div>
+      <div style="text-align:center;background:var(--dark4);border-radius:8px;padding:10px">
+        <div style="font-size:10px;color:var(--muted)">MORA</div>
+        <div style="color:${payStatus.mora > 0 ? 'var(--red)' : 'var(--muted)'};font-weight:700;font-size:15px;margin-top:4px">${payStatus.mora > 0 ? fmt(payStatus.mora) : '—'}</div>
+      </div>
+    </div>
+    ${payStatus.mora > 0 ? `<div style="margin-top:10px;padding:8px 12px;background:rgba(231,76,60,.1);border-radius:8px;font-size:13px;color:var(--red)">⚠️ <strong>${payStatus.cuotasAtrasadas}</strong> cuota(s) vencida(s).<br>• Cuotas vencidas: <strong>${fmt(payStatus.cuotasDeuda)}</strong><br>• Recargo mora (${p.porciento}%): <strong>${fmt(payStatus.mora)}</strong><br>• <u>Total a cobrar ahora: ${fmt(payStatus.totalConMora)}</u></div>` : ''}
+  `;
+
+  // Pre-fill: si atrasado, sugerir el total con mora; si al día, la cuota normal
+  const montoSugerido = payStatus.status === 'atrasado' ? payStatus.totalConMora : cuota;
+  document.getElementById('pago_monto').value = montoSugerido.toFixed(2);
+  document.getElementById('pago_nota').value = '';
+  document.getElementById('pagoError').style.display = 'none';
+  calcPagoPreview();
+  openModal('modalPago');
+}
+
+function calcPagoPreview() {
+  if (!pagoPrestamoId) return;
+  const data = getData();
+  const p = data.prestamos.find(x => x.id === pagoPrestamoId);
+  if (!p) return;
+  const monto = parseFloat(document.getElementById('pago_monto').value);
+  const errEl = document.getElementById('pagoError');
+
+  if (!monto || monto <= 0) {
+    document.getElementById('pagoPreview').style.display = 'none';
+    errEl.style.display = 'none';
+    return;
+  }
+
+  document.getElementById('pagoPreview').style.display = 'block';
+  const nuevoBalance = Math.max(0, p.balance - monto);
+
+  document.getElementById('prev_balanceAntes').textContent = fmt(p.balance);
+  document.getElementById('prev_pago').textContent = '- ' + fmt(monto);
+  document.getElementById('prev_balanceDespues').textContent = fmt(nuevoBalance);
+  document.getElementById('prev_balanceDespues').style.color = nuevoBalance <= 0 ? 'var(--green)' : 'var(--gold)';
+  document.getElementById('prev_estado').innerHTML = nuevoBalance <= 0
+    ? '<span class="badge pagado" style="font-size:12px">✔ PAGADO COMPLETO</span>'
+    : monto > p.balance
+    ? '<span style="color:var(--red);font-size:12px">⚠ Excede balance</span>'
+    : '<span class="badge active" style="font-size:12px">Abono parcial</span>';
+
+  if (monto > p.balance) {
+    errEl.textContent = `⚠️ El monto ingresado (${fmt(monto)}) excede el balance pendiente (${fmt(p.balance)}). Se aplicará solo ${fmt(p.balance)}.`;
+    errEl.style.display = 'block';
+  } else {
+    errEl.style.display = 'none';
+  }
+}
+
+function confirmarPago() {
+  if (!pagoPrestamoId) return;
+  const montoPago = parseFloat(document.getElementById('pago_monto').value);
+  const nota = document.getElementById('pago_nota').value.trim();
+  if (!montoPago || montoPago <= 0) {
+    document.getElementById('pagoError').textContent = 'Ingrese un monto válido';
+    document.getElementById('pagoError').style.display = 'block';
+    return;
+  }
+  const data = getData();
+  const idx = data.prestamos.findIndex(x => x.id === pagoPrestamoId);
+  if (idx === -1) return;
+  const p = data.prestamos[idx];
+  const aplicado = Math.min(montoPago, p.balance);
+  p.totalPagado = (p.totalPagado || 0) + aplicado;
+  p.balance = Math.max(0, p.balance - aplicado);
+  if (!p.historialPagos) p.historialPagos = [];
+  p.historialPagos.push({
+    fecha: new Date().toISOString().split('T')[0],
+    monto: aplicado,
+    nota: nota || 'Pago registrado',
+    balanceTras: p.balance
+  });
+  saveData(data);
+  closeModal('modalPago');
+  renderAll();
+  if (p.balance <= 0) {
+    toast(`🎉 ${p.nombre} pagó completamente su préstamo!`, 'success');
+  } else {
+    toast(`✅ Pago de ${fmt(aplicado)} registrado. Balance: ${fmt(p.balance)}`, 'success');
+  }
+}
+
+// ============== USUARIOS ==============
+function renderUsuarios() {
+  // Solo el administrador puede ver y gestionar usuarios
+  if (!currentUser || currentUser.role !== 'admin') {
+    document.getElementById('usuariosList').innerHTML = `
+      <div style="text-align:center;padding:60px 20px;color:var(--muted)">
+        <div style="font-size:48px;margin-bottom:12px">🔒</div>
+        <div style="font-size:16px;font-weight:600;color:var(--text)">Acceso Restringido</div>
+        <div style="font-size:13px;margin-top:6px">Solo el administrador puede gestionar usuarios.</div>
+      </div>`;
+    return;
+  }
+  const data = getData();
+  const colors = { admin:'#C8A84B', cajero:'#3498DB', viewer:'#7C7F8E' };
+  document.getElementById('usuariosList').innerHTML = data.users.map(u => `
+    <div class="user-card">
+      <div class="u-av" style="background:${colors[u.role]||'#555'};color:${u.role==='admin'?'#000':'#fff'}">${u.nombre.charAt(0).toUpperCase()}</div>
+      <div class="u-info">
+        <div class="u-name">${u.nombre}</div>
+        <div class="u-meta">@${u.user} • ${u.role === 'admin' ? 'Acceso total al sistema' : u.role === 'cajero' ? 'Puede registrar pagos' : 'Solo puede ver datos'}</div>
+      </div>
+      <span class="role-badge role-${u.role}">${u.role.toUpperCase()}</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-outline" style="padding:7px 12px;font-size:12px" onclick="editarUsuario(${u.id})">✏️ Editar</button>
+        ${u.id !== currentUser.id
+          ? `<button class="btn btn-red" style="padding:7px 12px;font-size:12px" onclick="eliminarUsuario(${u.id})">🗑️ Eliminar</button>`
+          : `<span class="badge active" style="font-size:10px;padding:4px 10px">Tú</span>`}
+      </div>
+    </div>
+  `).join('');
+}
+
+function eliminarUsuario(id) {
+  if (!currentUser || currentUser.role !== 'admin') {
+    toast('No tienes permiso para eliminar usuarios', 'error');
+    return;
+  }
+  if (!confirm('¿Eliminar este usuario?')) return;
+  const data = getData();
+  data.users = data.users.filter(u => u.id !== id);
+  saveData(data);
+  renderUsuarios();
+  toast('Usuario eliminado', 'error');
+}
+
+function abrirNuevoUsuario() {
+  document.getElementById('u_edit_id').value = '';
+  document.getElementById('modalUserTitle').textContent = 'Nuevo Usuario';
+  document.getElementById('btnGuardarUser').textContent = 'Crear Usuario';
+  document.getElementById('u_pass_hint').style.display = 'none';
+  ['u_nombre','u_user','u_pass'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('u_role').value = 'cajero';
+  openModal('modalUser');
+}
+
+function editarUsuario(id) {
+  if (!currentUser || currentUser.role !== 'admin') { toast('Sin permiso','error'); return; }
+  const data = getData();
+  const u = data.users.find(x => x.id === id);
+  if (!u) return;
+  document.getElementById('u_edit_id').value = u.id;
+  document.getElementById('modalUserTitle').textContent = 'Editar Usuario';
+  document.getElementById('btnGuardarUser').textContent = 'Guardar Cambios';
+  document.getElementById('u_pass_hint').style.display = 'inline';
+  document.getElementById('u_nombre').value = u.nombre;
+  document.getElementById('u_user').value = u.user;
+  document.getElementById('u_pass').value = '';
+  document.getElementById('u_role').value = u.role;
+  openModal('modalUser');
+}
+
+function guardarUsuario() {
+  if (!currentUser || currentUser.role !== 'admin') {
+    toast('No tienes permiso', 'error');
+    return;
+  }
+  const editId = document.getElementById('u_edit_id').value;
+  const nombre = document.getElementById('u_nombre').value.trim();
+  const user = document.getElementById('u_user').value.trim();
+  const pass = document.getElementById('u_pass').value;
+  const role = document.getElementById('u_role').value;
+  if (!nombre || !user) { toast('Complete nombre y usuario','error'); return; }
+  const data = getData();
+
+  if (editId) {
+    // EDITAR usuario existente
+    const idx = data.users.findIndex(u => String(u.id) === String(editId));
+    if (idx === -1) { toast('Usuario no encontrado','error'); return; }
+    const dup = data.users.find(u => u.user === user && String(u.id) !== String(editId));
+    if (dup) { toast('Ese nombre de usuario ya existe','error'); return; }
+    data.users[idx].nombre = nombre;
+    data.users[idx].user = user;
+    data.users[idx].role = role;
+    if (pass) data.users[idx].pass = pass;
+    saveData(data);
+    closeModal('modalUser');
+    renderUsuarios();
+    toast('Usuario actualizado exitosamente','success');
+  } else {
+    // CREAR nuevo
+    if (!pass) { toast('La contraseña es requerida','error'); return; }
+    if (data.users.find(u => u.user === user)) { toast('Ese usuario ya existe','error'); return; }
+    data.users.push({ id: Date.now(), nombre, user, pass, role });
+    saveData(data);
+    closeModal('modalUser');
+    renderUsuarios();
+    toast('Usuario creado exitosamente','success');
+  }
+}
+
+// ============== EDITAR PRÉSTAMO ==============
+function editarPrestamo(id) {
+  if (!currentUser || currentUser.role !== 'admin') { toast('Sin permiso','error'); return; }
+  const data = getData();
+  const p = data.prestamos.find(x => x.id === id);
+  if (!p) return;
+
+  document.getElementById('ep_id').value = p.id;
+  document.getElementById('ep_nombre').value = p.nombre;
+  document.getElementById('ep_cedula').value = p.cedula || '';
+  document.getElementById('ep_monto').value = p.monto;
+  document.getElementById('ep_porciento').value = p.porciento;
+  document.getElementById('ep_cuotas').value = p.cuotas;
+  document.getElementById('ep_frecuencia').value = p.frecuencia;
+  document.getElementById('ep_fecha').value = p.fechaInicio || '';
+
+  document.getElementById('editPrestamoInfo').innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px">
+      <div class="user-avatar" style="flex-shrink:0">${p.nombre.charAt(0)}</div>
+      <div>
+        <strong>${p.nombre}</strong> — Balance actual: <span style="color:var(--red);font-weight:700">${fmt(p.balance)}</span>
+        &nbsp;•&nbsp; Pagado: <span style="color:var(--green);font-weight:700">${fmt(p.totalPagado)}</span>
+      </div>
+    </div>`;
+
+  calcEditPrestamo();
+  openModal('modalEditPrestamo');
+}
+
+function calcEditPrestamo() {
+  const monto = parseFloat(document.getElementById('ep_monto').value);
+  const porc = parseFloat(document.getElementById('ep_porciento').value);
+  const cuotas = parseInt(document.getElementById('ep_cuotas').value);
+  const frec = document.getElementById('ep_frecuencia').value;
+  if (!monto || !porc || !cuotas) { document.getElementById('epCalcPanel').style.display='none'; return; }
+  const calc = calcPrestamo(monto, porc, cuotas, frec);
+  document.getElementById('epCalcPanel').style.display = 'block';
+  renderCalcTable(calc, 'epCalcBody');
+}
+
+function guardarEditPrestamo() {
+  if (!currentUser || currentUser.role !== 'admin') { toast('Sin permiso','error'); return; }
+  const id = parseInt(document.getElementById('ep_id').value);
+  const nombre = document.getElementById('ep_nombre').value.trim();
+  const cedula = document.getElementById('ep_cedula').value.trim();
+  const monto = parseFloat(document.getElementById('ep_monto').value);
+  const porc = parseFloat(document.getElementById('ep_porciento').value);
+  const cuotas = parseInt(document.getElementById('ep_cuotas').value);
+  const frec = document.getElementById('ep_frecuencia').value;
+  const fecha = document.getElementById('ep_fecha').value;
+
+  if (!nombre || !monto || !porc || !cuotas) { toast('Complete todos los campos','error'); return; }
+
+  const data = getData();
+  const idx = data.prestamos.findIndex(x => x.id === id);
+  if (idx === -1) { toast('Préstamo no encontrado','error'); return; }
+
+  const calc = calcPrestamo(monto, porc, cuotas, frec);
+  const cuota = frec === 'diario' ? calc.diario.cuota : frec === 'semanal' ? calc.semanal.cuota : calc.mensual.cuota;
+  const total = frec === 'diario' ? calc.diario.total : frec === 'semanal' ? calc.semanal.total : calc.mensual.total;
+
+  // Recalculate balance based on what's already been paid
+  const pagado = data.prestamos[idx].totalPagado || 0;
+  const nuevoBalance = Math.max(0, total - pagado);
+
+  data.prestamos[idx] = {
+    ...data.prestamos[idx],
+    nombre, cedula, monto, porciento: porc,
+    frecuencia: frec, cuotas, cuota,
+    totalPagar: total,
+    balance: nuevoBalance,
+    fechaInicio: fecha
+  };
+
+  saveData(data);
+  closeModal('modalEditPrestamo');
+  renderAll();
+  toast(`✅ Préstamo de ${nombre} actualizado correctamente`, 'success');
+}
+
+// ============== REENGANCHE ==============
+let reenganchemPrestamoId = null;
+let reenganchemSearch = '';
+function filterReenganche(v) { reenganchemSearch = v.toLowerCase(); renderReenganche(); }
+
+function renderReenganche() {
+  const data = getData();
+  // Show loans that are fully paid
+  let pagados = data.prestamos.filter(p => p.balance <= 0);
+  if (reenganchemSearch) pagados = pagados.filter(p => p.nombre.toLowerCase().includes(reenganchemSearch) || (p.cedula||'').includes(reenganchemSearch));
+
+  const container = document.getElementById('reenganchemContainer');
+  if (!container) return;
+
+  if (!pagados.length) {
+    container.innerHTML = `
+      <div style="text-align:center;padding:60px 20px;color:var(--muted)">
+        <div style="font-size:48px;margin-bottom:12px">📭</div>
+        <div style="font-size:16px;font-weight:600;color:var(--text)">Sin préstamos completados</div>
+        <div style="font-size:13px;margin-top:6px">Cuando un cliente termine de pagar su préstamo aparecerá aquí para hacer reenganche.</div>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = pagados.map(p => {
+    const numPagos = p.historialPagos ? p.historialPagos.length : 0;
+    const fechaFin = p.historialPagos && p.historialPagos.length
+      ? p.historialPagos[p.historialPagos.length-1].fecha
+      : p.fechaInicio || '—';
+    return `
+    <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:12px;display:flex;align-items:center;gap:16px">
+      <div class="user-avatar" style="width:52px;height:52px;font-size:20px;flex-shrink:0;border-radius:12px">${p.nombre.charAt(0)}</div>
+      <div style="flex:1">
+        <div style="font-weight:700;font-size:16px">${p.nombre}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:3px">${p.cedula||'Sin cédula'}</div>
+        <div style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap">
+          <div><span style="font-size:10px;color:var(--muted);text-transform:uppercase">Último préstamo</span><div style="font-weight:700;color:var(--gold)">${fmt(p.monto)}</div></div>
+          <div><span style="font-size:10px;color:var(--muted);text-transform:uppercase">Interés</span><div style="font-weight:700;color:var(--text)">${p.porciento}%</div></div>
+          <div><span style="font-size:10px;color:var(--muted);text-transform:uppercase">Modalidad</span><div><span class="badge ${p.frecuencia}" style="font-size:11px">${p.frecuencia.toUpperCase()}</span></div></div>
+          <div><span style="font-size:10px;color:var(--muted);text-transform:uppercase">Pagó en</span><div style="font-weight:700;color:var(--green)">${numPagos} cuota(s)</div></div>
+          <div><span style="font-size:10px;color:var(--muted);text-transform:uppercase">Fecha final</span><div style="color:var(--text)">${fechaFin}</div></div>
+        </div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Total que pagó</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--green)">${fmt(p.totalPagado)}</div>
+        <button class="btn btn-gold" style="margin-top:10px;padding:10px 18px;font-size:13px;width:100%" onclick="abrirReenganche(${p.id})">
+          🔄 Hacer Reenganche
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function abrirReenganche(id) {
+  const data = getData();
+  const p = data.prestamos.find(x => x.id === id);
+  if (!p) return;
+  reenganchemPrestamoId = id;
+
+  document.getElementById('reenganchemInfo').innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px">
+      <div class="user-avatar" style="width:48px;height:48px;font-size:18px">${p.nombre.charAt(0)}</div>
+      <div style="flex:1">
+        <div style="font-weight:700;font-size:16px">${p.nombre}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:3px">${p.cedula||'Sin cédula'}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:11px;color:var(--muted)">Último préstamo</div>
+        <div style="font-weight:700;color:var(--gold)">${fmt(p.monto)}</div>
+        <div style="font-size:11px;color:var(--muted)">al ${p.porciento}% · ${p.frecuencia}</div>
+      </div>
+    </div>
+    <div style="margin-top:12px;padding:10px 14px;background:rgba(46,204,113,0.08);border-radius:8px;font-size:12px;color:var(--green)">
+      ✅ Préstamo anterior pagado completamente el ${p.fechaInicio||'N/A'} — historial de ${p.historialPagos ? p.historialPagos.length : 0} pago(s)
+    </div>
+  `;
+
+  // Pre-fill with last loan terms
+  document.getElementById('re_monto').value = p.monto;
+  document.getElementById('re_porciento').value = p.porciento;
+  document.getElementById('re_cuotas').value = p.cuotas;
+  document.getElementById('re_frecuencia').value = p.frecuencia;
+  document.getElementById('re_fecha').value = new Date().toISOString().split('T')[0];
+  calcReenganche();
+  openModal('modalReenganche');
+}
+
+function calcReenganche() {
+  const monto = parseFloat(document.getElementById('re_monto').value);
+  const porc = parseFloat(document.getElementById('re_porciento').value);
+  const cuotas = parseInt(document.getElementById('re_cuotas').value);
+  const frec = document.getElementById('re_frecuencia').value;
+  if (!monto || !porc || !cuotas) { document.getElementById('reCalcPanel').style.display='none'; return; }
+  const calc = calcPrestamo(monto, porc, cuotas, frec);
+  document.getElementById('reCalcPanel').style.display = 'block';
+  renderCalcTable(calc, 'reCalcBody');
+}
+
+function confirmarReenganche() {
+  if (!reenganchemPrestamoId) return;
+  const data = getData();
+  const original = data.prestamos.find(x => x.id === reenganchemPrestamoId);
+  if (!original) return;
+
+  const monto = parseFloat(document.getElementById('re_monto').value);
+  const porc = parseFloat(document.getElementById('re_porciento').value);
+  const cuotas = parseInt(document.getElementById('re_cuotas').value);
+  const frec = document.getElementById('re_frecuencia').value;
+  const fecha = document.getElementById('re_fecha').value;
+
+  if (!monto || !porc || !cuotas) { toast('Complete todos los campos','error'); return; }
+
+  const calc = calcPrestamo(monto, porc, cuotas, frec);
+  const cuota = frec === 'diario' ? calc.diario.cuota : frec === 'semanal' ? calc.semanal.cuota : calc.mensual.cuota;
+  const total = frec === 'diario' ? calc.diario.total : frec === 'semanal' ? calc.semanal.total : calc.mensual.total;
+
+  const nuevo = {
+    id: data.nextId++,
+    nombre: original.nombre,
+    cedula: original.cedula,
+    monto, porciento: porc, frecuencia: frec,
+    cuotas, totalPagar: total, cuota,
+    balance: total, totalPagado: 0,
+    fechaInicio: fecha, estado: 'activo',
+    reenganchemDe: original.id,
+    historialPagos: []
+  };
+
+  data.prestamos.push(nuevo);
+  saveData(data);
+  closeModal('modalReenganche');
+  renderAll();
+  toast(`🎉 Reenganche de ${original.nombre} registrado exitosamente`, 'success');
+}
+
+// ============== MODAL ==============
+function openModal(id) { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+document.querySelectorAll('.modal-overlay').forEach(m => m.addEventListener('click', function(e){ if(e.target===this) this.classList.remove('show'); }));
+
+// ============== TOAST ==============
+function toast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = (type==='success'?'✅ ':'❌ ') + msg;
+  t.className = 'toast show ' + type;
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>
