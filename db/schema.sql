@@ -40,3 +40,12 @@ CREATE TABLE IF NOT EXISTS pagos (
 
 CREATE INDEX IF NOT EXISTS idx_pagos_prestamo_id ON pagos(prestamo_id);
 CREATE INDEX IF NOT EXISTS idx_prestamos_nombre ON prestamos(nombre);
+
+-- Fila única con configuración global (logo, etc.) visible para todos los usuarios
+CREATE TABLE IF NOT EXISTS app_config (
+  id             SMALLINT PRIMARY KEY DEFAULT 1,
+  logo_data_url  TEXT,
+  updated_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT app_config_singleton CHECK (id = 1)
+);
+INSERT INTO app_config (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
