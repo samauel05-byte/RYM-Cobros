@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>RYM Soluciones - Sistema de Préstamos</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%90%A6%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -375,6 +376,7 @@
       <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--gold);letter-spacing:3px">Samuel Roa</div>
       <div style="font-size:12px;color:var(--muted);margin-top:4px">📞 809-986-3977</div>
       <div style="font-size:11px;color:rgba(255,255,255,0.2);margin-top:6px" id="fechaCreacion"></div>
+      <div style="font-size:10px;color:rgba(255,255,255,0.15);margin-top:4px;letter-spacing:1px" id="appVersionLogin"></div>
     </div>
   </div>
 </div>
@@ -432,6 +434,7 @@
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
       </button>
     </div>
+    <div style="text-align:center;padding:8px 12px 14px;font-size:10px;color:rgba(255,255,255,0.15);letter-spacing:1px" id="appVersionSidebar"></div>
   </div>
 
   <div class="main-content">
@@ -785,6 +788,8 @@
 <div class="toast" id="toast"></div>
 
 <script>
+const APP_VERSION = 'Samkill 0.1';
+
 // Set creation date on load
 document.addEventListener('DOMContentLoaded', function() {
   const KEY = 'rym_created_date';
@@ -795,6 +800,8 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   const el = document.getElementById('fechaCreacion');
   if (el) el.textContent = 'Sistema creado el ' + fecha;
+  document.getElementById('appVersionLogin').textContent = APP_VERSION;
+  document.getElementById('appVersionSidebar').textContent = APP_VERSION;
 });
 
 // ============== DATA & STATE ==============
@@ -822,6 +829,30 @@ async function cargarEstado() {
   appData.users = state.users || [];
 }
 
+// Evita doble envío (doble clic) en acciones críticas mientras la petición está en curso
+const pendingActions = new Set();
+async function conGuardia(key, fn) {
+  if (pendingActions.has(key)) return;
+  pendingActions.add(key);
+  try {
+    await fn();
+  } finally {
+    pendingActions.delete(key);
+  }
+}
+
+// Refresca los datos desde el servidor cuando la pestaña vuelve a estar visible,
+// para que cambios hechos desde otro dispositivo (PC/celular) se reflejen sin recargar.
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState !== 'visible' || !currentUser) return;
+  try {
+    await cargarEstado();
+    renderAll();
+  } catch {
+    // si la sesión expiró o hay un problema de red, se ignora silenciosamente
+  }
+});
+
 function enterApp(user) {
   currentUser = user;
   document.getElementById('loginScreen').style.display = 'none';
@@ -837,6 +868,7 @@ function enterApp(user) {
   document.getElementById('np_fecha').value = today;
   document.getElementById('m_fecha').value = today;
   renderAll();
+  iniciarAutoRefresh();
 }
 
 (async function initSession() {
@@ -929,19 +961,21 @@ function renderCalcTable(calc, bodyId) {
 
 // ============== LOGIN ==============
 async function doLogin() {
-  const u = document.getElementById('loginUser').value.trim();
-  const p = document.getElementById('loginPass').value;
-  const errEl = document.getElementById('loginError');
-  errEl.style.display = 'none';
-  if (!u || !p) return;
-  try {
-    const { user } = await apiFetch('/api/auth/login', { method: 'POST', body: { user: u, pass: p } });
-    await cargarEstado();
-    enterApp(user);
-  } catch (e) {
-    errEl.textContent = e.message || 'Usuario o contraseña incorrectos';
-    errEl.style.display = 'block';
-  }
+  await conGuardia('doLogin', async () => {
+    const u = document.getElementById('loginUser').value.trim();
+    const p = document.getElementById('loginPass').value;
+    const errEl = document.getElementById('loginError');
+    errEl.style.display = 'none';
+    if (!u || !p) return;
+    try {
+      const { user } = await apiFetch('/api/auth/login', { method: 'POST', body: { user: u, pass: p } });
+      await cargarEstado();
+      enterApp(user);
+    } catch (e) {
+      errEl.textContent = e.message || 'Usuario o contraseña incorrectos';
+      errEl.style.display = 'block';
+    }
+  });
 }
 
 document.addEventListener('keydown', e => {
@@ -952,11 +986,30 @@ async function doLogout() {
   try { await apiFetch('/api/auth/logout', { method: 'POST' }); } catch {}
   currentUser = null;
   appData = { prestamos: [], users: [] };
+  detenerAutoRefresh();
   document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('appScreen').style.display = 'none';
   document.getElementById('loginUser').value = '';
   document.getElementById('loginPass').value = '';
   document.getElementById('loginError').style.display = 'none';
+}
+
+// Mantiene los datos sincronizados entre dispositivos (PC/celular) mientras la sesión está activa
+let autoRefreshTimer = null;
+function iniciarAutoRefresh() {
+  detenerAutoRefresh();
+  autoRefreshTimer = setInterval(async () => {
+    if (!currentUser || document.visibilityState !== 'visible') return;
+    try {
+      await cargarEstado();
+      renderAll();
+    } catch {
+      // se reintenta en el siguiente ciclo
+    }
+  }, 45000);
+}
+function detenerAutoRefresh() {
+  if (autoRefreshTimer) { clearInterval(autoRefreshTimer); autoRefreshTimer = null; }
 }
 
 // ============== NAVIGATION ==============
@@ -1197,15 +1250,17 @@ function renderClientes() {
 
 async function eliminarPrestamo(id) {
   if (!confirm('¿Eliminar este préstamo? Esta acción no se puede deshacer.')) return;
-  try {
-    await apiFetch('/api/prestamos/' + id, { method: 'DELETE' });
-    const data = getData();
-    data.prestamos = data.prestamos.filter(p => p.id !== id);
-    renderAll();
-    toast('Préstamo eliminado', 'error');
-  } catch (e) {
-    toast(e.message, 'error');
-  }
+  await conGuardia('eliminarPrestamo:' + id, async () => {
+    try {
+      await apiFetch('/api/prestamos/' + id, { method: 'DELETE' });
+      const data = getData();
+      data.prestamos = data.prestamos.filter(p => p.id !== id);
+      renderAll();
+      toast('Préstamo eliminado', 'error');
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  });
 }
 
 // ============== COBROS ==============
@@ -1303,14 +1358,16 @@ async function guardarPrestamo() {
   const frec = document.getElementById('np_frecuencia').value;
   const fecha = document.getElementById('np_fecha').value;
   if (!nombre || !monto || !porc || !cuotas) { toast('Complete todos los campos requeridos','error'); return; }
-  try {
-    await buildPrestamo(nombre, cedula, monto, porc, cuotas, frec, fecha);
-    limpiarNuevo();
-    toast('Préstamo registrado exitosamente','success');
-    renderAll();
-  } catch (e) {
-    toast(e.message, 'error');
-  }
+  await conGuardia('guardarPrestamo', async () => {
+    try {
+      await buildPrestamo(nombre, cedula, monto, porc, cuotas, frec, fecha);
+      limpiarNuevo();
+      toast('Préstamo registrado exitosamente','success');
+      renderAll();
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  });
 }
 
 async function guardarPrestamoModal() {
@@ -1322,14 +1379,16 @@ async function guardarPrestamoModal() {
   const frec = document.getElementById('m_frecuencia').value;
   const fecha = document.getElementById('m_fecha').value;
   if (!nombre || !monto || !porc || !cuotas) { toast('Complete todos los campos','error'); return; }
-  try {
-    await buildPrestamo(nombre, cedula, monto, porc, cuotas, frec, fecha);
-    closeModal('modalPrestamo');
-    toast('Préstamo registrado','success');
-    renderAll();
-  } catch (e) {
-    toast(e.message, 'error');
-  }
+  await conGuardia('guardarPrestamoModal', async () => {
+    try {
+      await buildPrestamo(nombre, cedula, monto, porc, cuotas, frec, fecha);
+      closeModal('modalPrestamo');
+      toast('Préstamo registrado','success');
+      renderAll();
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  });
 }
 
 function limpiarNuevo() {
@@ -1550,28 +1609,30 @@ async function confirmarPago() {
     errEl.style.display = 'block';
     return;
   }
-  try {
-    const { prestamo, pago } = await apiFetch('/api/prestamos/' + pagoPrestamoId + '/pagos', {
-      method: 'POST',
-      body: { monto: montoPago, nota }
-    });
-    const data = getData();
-    const idx = data.prestamos.findIndex(x => x.id === pagoPrestamoId);
-    if (idx !== -1) {
-      const historialPagos = [...(data.prestamos[idx].historialPagos || []), pago];
-      data.prestamos[idx] = { ...data.prestamos[idx], ...prestamo, historialPagos };
+  await conGuardia('confirmarPago:' + pagoPrestamoId, async () => {
+    try {
+      const { prestamo, pago } = await apiFetch('/api/prestamos/' + pagoPrestamoId + '/pagos', {
+        method: 'POST',
+        body: { monto: montoPago, nota }
+      });
+      const data = getData();
+      const idx = data.prestamos.findIndex(x => x.id === pagoPrestamoId);
+      if (idx !== -1) {
+        const historialPagos = [...(data.prestamos[idx].historialPagos || []), pago];
+        data.prestamos[idx] = { ...data.prestamos[idx], ...prestamo, historialPagos };
+      }
+      closeModal('modalPago');
+      renderAll();
+      if (Number(prestamo.balance) <= 0) {
+        toast(`🎉 ${prestamo.nombre} pagó completamente su préstamo!`, 'success');
+      } else {
+        toast(`✅ Pago de ${fmt(pago.monto)} registrado. Balance: ${fmt(prestamo.balance)}`, 'success');
+      }
+    } catch (e) {
+      errEl.textContent = e.message;
+      errEl.style.display = 'block';
     }
-    closeModal('modalPago');
-    renderAll();
-    if (Number(prestamo.balance) <= 0) {
-      toast(`🎉 ${prestamo.nombre} pagó completamente su préstamo!`, 'success');
-    } else {
-      toast(`✅ Pago de ${fmt(pago.monto)} registrado. Balance: ${fmt(prestamo.balance)}`, 'success');
-    }
-  } catch (e) {
-    errEl.textContent = e.message;
-    errEl.style.display = 'block';
-  }
+  });
 }
 
 // ============== USUARIOS ==============
@@ -1612,6 +1673,7 @@ async function eliminarUsuario(id) {
     return;
   }
   if (!confirm('¿Eliminar este usuario?')) return;
+  await conGuardia('eliminarUsuario:' + id, async () => {
   try {
     await apiFetch('/api/usuarios/' + id, { method: 'DELETE' });
     const data = getData();
@@ -1621,6 +1683,7 @@ async function eliminarUsuario(id) {
   } catch (e) {
     toast(e.message, 'error');
   }
+  });
 }
 
 function abrirNuevoUsuario() {
@@ -1662,6 +1725,7 @@ async function guardarUsuario() {
   if (!nombre || !user) { toast('Complete nombre y usuario','error'); return; }
   const data = getData();
 
+  await conGuardia('guardarUsuario', async () => {
   try {
     if (editId) {
       // EDITAR usuario existente
@@ -1689,6 +1753,7 @@ async function guardarUsuario() {
   } catch (e) {
     toast(e.message, 'error');
   }
+  });
 }
 
 // ============== EDITAR PRÉSTAMO ==============
@@ -1744,20 +1809,22 @@ async function guardarEditPrestamo() {
 
   if (!nombre || !monto || !porc || !cuotas) { toast('Complete todos los campos','error'); return; }
 
-  try {
-    const { prestamo } = await apiFetch('/api/prestamos/' + id, {
-      method: 'PUT',
-      body: { nombre, cedula, monto, porciento: porc, cuotas, frecuencia: frec, fechaInicio: fecha }
-    });
-    const data = getData();
-    const idx = data.prestamos.findIndex(x => x.id === id);
-    if (idx !== -1) data.prestamos[idx] = { ...data.prestamos[idx], ...prestamo };
-    closeModal('modalEditPrestamo');
-    renderAll();
-    toast(`✅ Préstamo de ${nombre} actualizado correctamente`, 'success');
-  } catch (e) {
-    toast(e.message, 'error');
-  }
+  await conGuardia('guardarEditPrestamo:' + id, async () => {
+    try {
+      const { prestamo } = await apiFetch('/api/prestamos/' + id, {
+        method: 'PUT',
+        body: { nombre, cedula, monto, porciento: porc, cuotas, frecuencia: frec, fechaInicio: fecha }
+      });
+      const data = getData();
+      const idx = data.prestamos.findIndex(x => x.id === id);
+      if (idx !== -1) data.prestamos[idx] = { ...data.prestamos[idx], ...prestamo };
+      closeModal('modalEditPrestamo');
+      renderAll();
+      toast(`✅ Préstamo de ${nombre} actualizado correctamente`, 'success');
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  });
 }
 
 // ============== REENGANCHE ==============
@@ -1873,18 +1940,20 @@ async function confirmarReenganche() {
 
   if (!monto || !porc || !cuotas) { toast('Complete todos los campos','error'); return; }
 
-  try {
-    const { prestamo } = await apiFetch('/api/prestamos/' + reenganchemPrestamoId + '/reenganche', {
-      method: 'POST',
-      body: { monto, porciento: porc, cuotas, frecuencia: frec, fechaInicio: fecha }
-    });
-    data.prestamos.push(prestamo);
-    closeModal('modalReenganche');
-    renderAll();
-    toast(`🎉 Reenganche de ${original.nombre} registrado exitosamente`, 'success');
-  } catch (e) {
-    toast(e.message, 'error');
-  }
+  await conGuardia('confirmarReenganche:' + reenganchemPrestamoId, async () => {
+    try {
+      const { prestamo } = await apiFetch('/api/prestamos/' + reenganchemPrestamoId + '/reenganche', {
+        method: 'POST',
+        body: { monto, porciento: porc, cuotas, frecuencia: frec, fechaInicio: fecha }
+      });
+      data.prestamos.push(prestamo);
+      closeModal('modalReenganche');
+      renderAll();
+      toast(`🎉 Reenganche de ${original.nombre} registrado exitosamente`, 'success');
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  });
 }
 
 // ============== MODAL ==============
