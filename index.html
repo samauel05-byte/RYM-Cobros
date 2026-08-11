@@ -816,7 +816,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = 'SamKill 0.3';
+const APP_VERSION = 'SamKill 0.4';
 
 document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('appVersionLogin').textContent = APP_VERSION;
@@ -929,6 +929,12 @@ function normalizarPrestamo(p) {
     cuota: Number(p.cuota),
     balance: Number(p.balance),
     totalPagado: Number(p.totalPagado),
+    // Postgres devuelve las columnas DATE de nivel superior como timestamp completo
+    // (ej. "2026-04-14T00:00:00.000Z") mientras que dentro de un json_build_object
+    // (como historialPagos) las serializa como fecha simple. Se recorta a los
+    // primeros 10 caracteres ("YYYY-MM-DD") para que <input type="date"> y las
+    // pantallas que muestran la fecha directamente funcionen igual en ambos casos.
+    fechaInicio: p.fechaInicio ? String(p.fechaInicio).slice(0, 10) : null,
     historialPagos: (p.historialPagos || []).map(h => ({
       ...h,
       monto: Number(h.monto),
