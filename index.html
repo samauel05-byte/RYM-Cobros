@@ -308,6 +308,46 @@
   .pago-amounts { text-align:right; }
   .pago-main { font-size:18px; font-weight:700; color:var(--gold); }
   .pago-freq { font-size:11px; color:var(--muted); }
+
+  /* MOBILE TOPBAR */
+  .mobile-topbar { display:none; }
+
+  /* RESPONSIVE */
+  @media (max-width: 860px) {
+    .mobile-topbar {
+      display:flex; align-items:center; gap:14px; position:fixed; top:0; left:0; right:0; height:58px;
+      background:var(--dark2); border-bottom:1px solid var(--border); padding:0 16px; z-index:200;
+    }
+    .mobile-topbar .s-title { font-family:'Bebas Neue',sans-serif; font-size:18px; letter-spacing:2px; color:var(--gold); }
+    .btn-hamburger {
+      background:none; border:1px solid var(--border); border-radius:8px; width:38px; height:38px;
+      display:flex; align-items:center; justify-content:center; color:var(--text); cursor:pointer; flex-shrink:0;
+    }
+    .sidebar {
+      transform:translateX(-100%); transition:transform .25s ease; z-index:1500; width:78vw; max-width:280px;
+    }
+    .sidebar.open { transform:translateX(0); box-shadow:0 0 40px rgba(0,0,0,.5); }
+    .sidebar-backdrop {
+      display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:1400;
+    }
+    .sidebar-backdrop.show { display:block; }
+    .main-content { margin-left:0; padding:16px; padding-top:74px; }
+    .stats-grid { grid-template-columns:1fr 1fr; gap:12px; }
+    .dash-row { grid-template-columns:1fr; }
+    .modal-grid { grid-template-columns:1fr; }
+    .desglose-grid { grid-template-columns:1fr 1fr; }
+    .modal { padding:20px; width:100%; }
+    .login-box { width:100%; padding:36px 24px; }
+    .cobros-filter { flex-wrap:wrap; }
+    .pago-row { flex-wrap:wrap; }
+    .pago-amounts { text-align:left; width:100%; }
+    .action-bar { flex-wrap:wrap; }
+    .search-box { width:100% !important; }
+  }
+  @media (max-width: 480px) {
+    .stats-grid { grid-template-columns:1fr; }
+    .desglose-grid { grid-template-columns:1fr; }
+  }
 </style>
 </head>
 <body>
@@ -341,6 +381,13 @@
 
 <!-- APP -->
 <div id="appScreen">
+  <div class="mobile-topbar">
+    <button class="btn-hamburger" onclick="toggleSidebar()" aria-label="Abrir menú">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+    <div class="s-title">RYM SOLUCIONES</div>
+  </div>
+  <div class="sidebar-backdrop" onclick="toggleSidebar(false)"></div>
   <div class="sidebar">
     <div class="sidebar-logo">
       <div class="s-logo">RYM</div>
@@ -751,32 +798,56 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ============== DATA & STATE ==============
-const STORE_KEY = 'rym_data';
 let currentUser = null;
 let cobrosFilter = 'todos';
+let appData = { prestamos: [], users: [] };
 
-function loadData() {
-  const d = localStorage.getItem(STORE_KEY);
-  if (d) return JSON.parse(d);
-  // Seed with sample data from the Excel
-  const seed = {
-    users: [
-      { id:1, nombre:'Administrador', user:'admin', pass:'admin123', role:'admin' }
-    ],
-    prestamos: [
-      { id:1, nombre:'CARMEN S REYES', cedula:'076-0006399-9', monto:11000, porciento:25, frecuencia:'semanal', cuotas:4, totalPagar:13750, cuota:3437.50, balance:11000, totalPagado:0, fechaInicio:'2026-01-01', estado:'activo' },
-      { id:2, nombre:'MAN MAT GONZ', cedula:'076-0019277-2', monto:5400, porciento:10, frecuencia:'semanal', cuotas:12, totalPagar:5940, cuota:495, balance:4950, totalPagado:450, fechaInicio:'2026-04-01', estado:'activo' },
-      { id:3, nombre:'ROBERT GONZ', cedula:'048-0048337-4', monto:8856, porciento:12, frecuencia:'semanal', cuotas:12, totalPagar:9919, cuota:826.58, balance:8116, totalPagado:740, fechaInicio:'2026-05-04', estado:'activo' },
-      { id:4, nombre:'ELSA MARTINEZ', cedula:'076-0017709-6', monto:7500, porciento:10, frecuencia:'mensual', cuotas:3, totalPagar:8250, cuota:2750, balance:3800, totalPagado:3700, fechaInicio:'2026-03-24', estado:'activo' },
-      { id:5, nombre:'NORINEL CESPEDES', cedula:'', monto:5000, porciento:25, frecuencia:'diario', cuotas:30, totalPagar:6250, cuota:208.33, balance:5000, totalPagado:0, fechaInicio:'2026-04-27', estado:'activo' },
-    ],
-    nextId: 10
-  };
-  saveData(seed);
-  return seed;
+function getData() { return appData; }
+
+async function apiFetch(url, options = {}) {
+  const res = await fetch(url, {
+    method: options.method || 'GET',
+    headers: options.body ? { 'Content-Type': 'application/json' } : undefined,
+    body: options.body ? JSON.stringify(options.body) : undefined,
+  });
+  let json = null;
+  try { json = await res.json(); } catch {}
+  if (!res.ok) throw new Error((json && json.error) || `Error ${res.status}`);
+  return json;
 }
-function saveData(d) { localStorage.setItem(STORE_KEY, JSON.stringify(d)); }
-function getData() { return loadData(); }
+
+async function cargarEstado() {
+  const state = await apiFetch('/api/state');
+  appData.prestamos = state.prestamos;
+  appData.users = state.users || [];
+}
+
+function enterApp(user) {
+  currentUser = user;
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appScreen').style.display = 'block';
+  document.getElementById('sidebarAvatar').textContent = user.nombre.charAt(0).toUpperCase();
+  document.getElementById('sidebarName').textContent = user.nombre;
+  document.getElementById('sidebarRole').textContent = user.role === 'admin' ? 'Administrador' : user.role === 'cajero' ? 'Cajero' : 'Solo Lectura';
+  if (user.role === 'admin') {
+    document.getElementById('adminNav').style.display = 'block';
+    document.getElementById('navUsers').style.display = 'flex';
+  }
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('np_fecha').value = today;
+  document.getElementById('m_fecha').value = today;
+  renderAll();
+}
+
+(async function initSession() {
+  try {
+    const { user } = await apiFetch('/api/auth/me');
+    await cargarEstado();
+    enterApp(user);
+  } catch {
+    // No hay sesión activa: se queda en la pantalla de login
+  }
+})();
 
 // ============== CALC ENGINE ==============
 // Fórmula real: cuota = monto × (porciento/100)
@@ -857,38 +928,30 @@ function renderCalcTable(calc, bodyId) {
 }
 
 // ============== LOGIN ==============
-function doLogin() {
+async function doLogin() {
   const u = document.getElementById('loginUser').value.trim();
   const p = document.getElementById('loginPass').value;
-  const data = getData();
-  const found = data.users.find(x => x.user === u && x.pass === p);
-  if (!found) {
-    document.getElementById('loginError').style.display = 'block';
-    return;
+  const errEl = document.getElementById('loginError');
+  errEl.style.display = 'none';
+  if (!u || !p) return;
+  try {
+    const { user } = await apiFetch('/api/auth/login', { method: 'POST', body: { user: u, pass: p } });
+    await cargarEstado();
+    enterApp(user);
+  } catch (e) {
+    errEl.textContent = e.message || 'Usuario o contraseña incorrectos';
+    errEl.style.display = 'block';
   }
-  currentUser = found;
-  document.getElementById('loginScreen').style.display = 'none';
-  document.getElementById('appScreen').style.display = 'block';
-  document.getElementById('sidebarAvatar').textContent = found.nombre.charAt(0).toUpperCase();
-  document.getElementById('sidebarName').textContent = found.nombre;
-  document.getElementById('sidebarRole').textContent = found.role === 'admin' ? 'Administrador' : found.role === 'cajero' ? 'Cajero' : 'Solo Lectura';
-  if (found.role === 'admin') {
-    document.getElementById('adminNav').style.display = 'block';
-    document.getElementById('navUsers').style.display = 'flex';
-  }
-  // Set today as default date
-  const today = new Date().toISOString().split('T')[0];
-  document.getElementById('np_fecha').value = today;
-  document.getElementById('m_fecha').value = today;
-  renderAll();
 }
 
 document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && document.getElementById('loginScreen').style.display !== 'none') doLogin();
 });
 
-function doLogout() {
+async function doLogout() {
+  try { await apiFetch('/api/auth/logout', { method: 'POST' }); } catch {}
   currentUser = null;
+  appData = { prestamos: [], users: [] };
   document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('appScreen').style.display = 'none';
   document.getElementById('loginUser').value = '';
@@ -912,6 +975,17 @@ function showPage(name, el) {
   if (name === 'cobros') renderCobros();
   if (name === 'reenganche') renderReenganche();
   if (name === 'usuarios') renderUsuarios();
+  toggleSidebar(false);
+}
+
+// ============== MOBILE SIDEBAR ==============
+function toggleSidebar(force) {
+  const sidebar = document.querySelector('.sidebar');
+  const backdrop = document.querySelector('.sidebar-backdrop');
+  if (!sidebar || !backdrop) return;
+  const open = typeof force === 'boolean' ? force : !sidebar.classList.contains('open');
+  sidebar.classList.toggle('open', open);
+  backdrop.classList.toggle('show', open);
 }
 
 // ============== RENDER ALL ==============
@@ -1121,13 +1195,17 @@ function renderClientes() {
   }).join('');
 }
 
-function eliminarPrestamo(id) {
+async function eliminarPrestamo(id) {
   if (!confirm('¿Eliminar este préstamo? Esta acción no se puede deshacer.')) return;
-  const data = getData();
-  data.prestamos = data.prestamos.filter(p => p.id !== id);
-  saveData(data);
-  renderAll();
-  toast('Préstamo eliminado', 'error');
+  try {
+    await apiFetch('/api/prestamos/' + id, { method: 'DELETE' });
+    const data = getData();
+    data.prestamos = data.prestamos.filter(p => p.id !== id);
+    renderAll();
+    toast('Préstamo eliminado', 'error');
+  } catch (e) {
+    toast(e.message, 'error');
+  }
 }
 
 // ============== COBROS ==============
@@ -1207,24 +1285,16 @@ function calcModal() {
   renderCalcTable(calc, 'calcBodyModal');
 }
 
-function buildPrestamo(nombre, cedula, monto, porc, cuotas, frec, fecha) {
-  const calc = calcPrestamo(monto, porc, cuotas, frec);
-  const cuota = frec === 'diario' ? calc.diario.cuota : frec === 'semanal' ? calc.semanal.cuota : calc.mensual.cuota;
-  const total = frec === 'diario' ? calc.diario.total : frec === 'semanal' ? calc.semanal.total : calc.mensual.total;
-  const data = getData();
-  const p = {
-    id: data.nextId++,
-    nombre, cedula, monto, porciento: porc, frecuencia: frec,
-    cuotas, totalPagar: total, cuota,
-    balance: total, totalPagado: 0,
-    fechaInicio: fecha, estado: 'activo'
-  };
-  data.prestamos.push(p);
-  saveData(data);
-  return p;
+async function buildPrestamo(nombre, cedula, monto, porc, cuotas, frec, fecha) {
+  const { prestamo } = await apiFetch('/api/prestamos', {
+    method: 'POST',
+    body: { nombre, cedula, monto, porciento: porc, cuotas, frecuencia: frec, fechaInicio: fecha }
+  });
+  getData().prestamos.push(prestamo);
+  return prestamo;
 }
 
-function guardarPrestamo() {
+async function guardarPrestamo() {
   const nombre = document.getElementById('np_nombre').value.trim();
   const cedula = document.getElementById('np_cedula').value.trim();
   const monto = parseFloat(document.getElementById('np_monto').value);
@@ -1233,13 +1303,17 @@ function guardarPrestamo() {
   const frec = document.getElementById('np_frecuencia').value;
   const fecha = document.getElementById('np_fecha').value;
   if (!nombre || !monto || !porc || !cuotas) { toast('Complete todos los campos requeridos','error'); return; }
-  buildPrestamo(nombre, cedula, monto, porc, cuotas, frec, fecha);
-  limpiarNuevo();
-  toast('Préstamo registrado exitosamente','success');
-  renderAll();
+  try {
+    await buildPrestamo(nombre, cedula, monto, porc, cuotas, frec, fecha);
+    limpiarNuevo();
+    toast('Préstamo registrado exitosamente','success');
+    renderAll();
+  } catch (e) {
+    toast(e.message, 'error');
+  }
 }
 
-function guardarPrestamoModal() {
+async function guardarPrestamoModal() {
   const nombre = document.getElementById('m_nombre').value.trim();
   const cedula = document.getElementById('m_cedula').value.trim();
   const monto = parseFloat(document.getElementById('m_monto').value);
@@ -1248,10 +1322,14 @@ function guardarPrestamoModal() {
   const frec = document.getElementById('m_frecuencia').value;
   const fecha = document.getElementById('m_fecha').value;
   if (!nombre || !monto || !porc || !cuotas) { toast('Complete todos los campos','error'); return; }
-  buildPrestamo(nombre, cedula, monto, porc, cuotas, frec, fecha);
-  closeModal('modalPrestamo');
-  toast('Préstamo registrado','success');
-  renderAll();
+  try {
+    await buildPrestamo(nombre, cedula, monto, porc, cuotas, frec, fecha);
+    closeModal('modalPrestamo');
+    toast('Préstamo registrado','success');
+    renderAll();
+  } catch (e) {
+    toast(e.message, 'error');
+  }
 }
 
 function limpiarNuevo() {
@@ -1462,36 +1540,37 @@ function calcPagoPreview() {
   }
 }
 
-function confirmarPago() {
+async function confirmarPago() {
   if (!pagoPrestamoId) return;
   const montoPago = parseFloat(document.getElementById('pago_monto').value);
   const nota = document.getElementById('pago_nota').value.trim();
+  const errEl = document.getElementById('pagoError');
   if (!montoPago || montoPago <= 0) {
-    document.getElementById('pagoError').textContent = 'Ingrese un monto válido';
-    document.getElementById('pagoError').style.display = 'block';
+    errEl.textContent = 'Ingrese un monto válido';
+    errEl.style.display = 'block';
     return;
   }
-  const data = getData();
-  const idx = data.prestamos.findIndex(x => x.id === pagoPrestamoId);
-  if (idx === -1) return;
-  const p = data.prestamos[idx];
-  const aplicado = Math.min(montoPago, p.balance);
-  p.totalPagado = (p.totalPagado || 0) + aplicado;
-  p.balance = Math.max(0, p.balance - aplicado);
-  if (!p.historialPagos) p.historialPagos = [];
-  p.historialPagos.push({
-    fecha: new Date().toISOString().split('T')[0],
-    monto: aplicado,
-    nota: nota || 'Pago registrado',
-    balanceTras: p.balance
-  });
-  saveData(data);
-  closeModal('modalPago');
-  renderAll();
-  if (p.balance <= 0) {
-    toast(`🎉 ${p.nombre} pagó completamente su préstamo!`, 'success');
-  } else {
-    toast(`✅ Pago de ${fmt(aplicado)} registrado. Balance: ${fmt(p.balance)}`, 'success');
+  try {
+    const { prestamo, pago } = await apiFetch('/api/prestamos/' + pagoPrestamoId + '/pagos', {
+      method: 'POST',
+      body: { monto: montoPago, nota }
+    });
+    const data = getData();
+    const idx = data.prestamos.findIndex(x => x.id === pagoPrestamoId);
+    if (idx !== -1) {
+      const historialPagos = [...(data.prestamos[idx].historialPagos || []), pago];
+      data.prestamos[idx] = { ...data.prestamos[idx], ...prestamo, historialPagos };
+    }
+    closeModal('modalPago');
+    renderAll();
+    if (Number(prestamo.balance) <= 0) {
+      toast(`🎉 ${prestamo.nombre} pagó completamente su préstamo!`, 'success');
+    } else {
+      toast(`✅ Pago de ${fmt(pago.monto)} registrado. Balance: ${fmt(prestamo.balance)}`, 'success');
+    }
+  } catch (e) {
+    errEl.textContent = e.message;
+    errEl.style.display = 'block';
   }
 }
 
@@ -1527,17 +1606,21 @@ function renderUsuarios() {
   `).join('');
 }
 
-function eliminarUsuario(id) {
+async function eliminarUsuario(id) {
   if (!currentUser || currentUser.role !== 'admin') {
     toast('No tienes permiso para eliminar usuarios', 'error');
     return;
   }
   if (!confirm('¿Eliminar este usuario?')) return;
-  const data = getData();
-  data.users = data.users.filter(u => u.id !== id);
-  saveData(data);
-  renderUsuarios();
-  toast('Usuario eliminado', 'error');
+  try {
+    await apiFetch('/api/usuarios/' + id, { method: 'DELETE' });
+    const data = getData();
+    data.users = data.users.filter(u => u.id !== id);
+    renderUsuarios();
+    toast('Usuario eliminado', 'error');
+  } catch (e) {
+    toast(e.message, 'error');
+  }
 }
 
 function abrirNuevoUsuario() {
@@ -1566,7 +1649,7 @@ function editarUsuario(id) {
   openModal('modalUser');
 }
 
-function guardarUsuario() {
+async function guardarUsuario() {
   if (!currentUser || currentUser.role !== 'admin') {
     toast('No tienes permiso', 'error');
     return;
@@ -1579,29 +1662,32 @@ function guardarUsuario() {
   if (!nombre || !user) { toast('Complete nombre y usuario','error'); return; }
   const data = getData();
 
-  if (editId) {
-    // EDITAR usuario existente
-    const idx = data.users.findIndex(u => String(u.id) === String(editId));
-    if (idx === -1) { toast('Usuario no encontrado','error'); return; }
-    const dup = data.users.find(u => u.user === user && String(u.id) !== String(editId));
-    if (dup) { toast('Ese nombre de usuario ya existe','error'); return; }
-    data.users[idx].nombre = nombre;
-    data.users[idx].user = user;
-    data.users[idx].role = role;
-    if (pass) data.users[idx].pass = pass;
-    saveData(data);
-    closeModal('modalUser');
-    renderUsuarios();
-    toast('Usuario actualizado exitosamente','success');
-  } else {
-    // CREAR nuevo
-    if (!pass) { toast('La contraseña es requerida','error'); return; }
-    if (data.users.find(u => u.user === user)) { toast('Ese usuario ya existe','error'); return; }
-    data.users.push({ id: Date.now(), nombre, user, pass, role });
-    saveData(data);
-    closeModal('modalUser');
-    renderUsuarios();
-    toast('Usuario creado exitosamente','success');
+  try {
+    if (editId) {
+      // EDITAR usuario existente
+      const { user: updated } = await apiFetch('/api/usuarios/' + editId, {
+        method: 'PUT',
+        body: { nombre, user, pass: pass || undefined, role }
+      });
+      const idx = data.users.findIndex(u => String(u.id) === String(editId));
+      if (idx !== -1) data.users[idx] = updated;
+      closeModal('modalUser');
+      renderUsuarios();
+      toast('Usuario actualizado exitosamente','success');
+    } else {
+      // CREAR nuevo
+      if (!pass) { toast('La contraseña es requerida','error'); return; }
+      const { user: created } = await apiFetch('/api/usuarios', {
+        method: 'POST',
+        body: { nombre, user, pass, role }
+      });
+      data.users.push(created);
+      closeModal('modalUser');
+      renderUsuarios();
+      toast('Usuario creado exitosamente','success');
+    }
+  } catch (e) {
+    toast(e.message, 'error');
   }
 }
 
@@ -1645,7 +1731,7 @@ function calcEditPrestamo() {
   renderCalcTable(calc, 'epCalcBody');
 }
 
-function guardarEditPrestamo() {
+async function guardarEditPrestamo() {
   if (!currentUser || currentUser.role !== 'admin') { toast('Sin permiso','error'); return; }
   const id = parseInt(document.getElementById('ep_id').value);
   const nombre = document.getElementById('ep_nombre').value.trim();
@@ -1658,31 +1744,20 @@ function guardarEditPrestamo() {
 
   if (!nombre || !monto || !porc || !cuotas) { toast('Complete todos los campos','error'); return; }
 
-  const data = getData();
-  const idx = data.prestamos.findIndex(x => x.id === id);
-  if (idx === -1) { toast('Préstamo no encontrado','error'); return; }
-
-  const calc = calcPrestamo(monto, porc, cuotas, frec);
-  const cuota = frec === 'diario' ? calc.diario.cuota : frec === 'semanal' ? calc.semanal.cuota : calc.mensual.cuota;
-  const total = frec === 'diario' ? calc.diario.total : frec === 'semanal' ? calc.semanal.total : calc.mensual.total;
-
-  // Recalculate balance based on what's already been paid
-  const pagado = data.prestamos[idx].totalPagado || 0;
-  const nuevoBalance = Math.max(0, total - pagado);
-
-  data.prestamos[idx] = {
-    ...data.prestamos[idx],
-    nombre, cedula, monto, porciento: porc,
-    frecuencia: frec, cuotas, cuota,
-    totalPagar: total,
-    balance: nuevoBalance,
-    fechaInicio: fecha
-  };
-
-  saveData(data);
-  closeModal('modalEditPrestamo');
-  renderAll();
-  toast(`✅ Préstamo de ${nombre} actualizado correctamente`, 'success');
+  try {
+    const { prestamo } = await apiFetch('/api/prestamos/' + id, {
+      method: 'PUT',
+      body: { nombre, cedula, monto, porciento: porc, cuotas, frecuencia: frec, fechaInicio: fecha }
+    });
+    const data = getData();
+    const idx = data.prestamos.findIndex(x => x.id === id);
+    if (idx !== -1) data.prestamos[idx] = { ...data.prestamos[idx], ...prestamo };
+    closeModal('modalEditPrestamo');
+    renderAll();
+    toast(`✅ Préstamo de ${nombre} actualizado correctamente`, 'success');
+  } catch (e) {
+    toast(e.message, 'error');
+  }
 }
 
 // ============== REENGANCHE ==============
@@ -1784,7 +1859,7 @@ function calcReenganche() {
   renderCalcTable(calc, 'reCalcBody');
 }
 
-function confirmarReenganche() {
+async function confirmarReenganche() {
   if (!reenganchemPrestamoId) return;
   const data = getData();
   const original = data.prestamos.find(x => x.id === reenganchemPrestamoId);
@@ -1798,27 +1873,18 @@ function confirmarReenganche() {
 
   if (!monto || !porc || !cuotas) { toast('Complete todos los campos','error'); return; }
 
-  const calc = calcPrestamo(monto, porc, cuotas, frec);
-  const cuota = frec === 'diario' ? calc.diario.cuota : frec === 'semanal' ? calc.semanal.cuota : calc.mensual.cuota;
-  const total = frec === 'diario' ? calc.diario.total : frec === 'semanal' ? calc.semanal.total : calc.mensual.total;
-
-  const nuevo = {
-    id: data.nextId++,
-    nombre: original.nombre,
-    cedula: original.cedula,
-    monto, porciento: porc, frecuencia: frec,
-    cuotas, totalPagar: total, cuota,
-    balance: total, totalPagado: 0,
-    fechaInicio: fecha, estado: 'activo',
-    reenganchemDe: original.id,
-    historialPagos: []
-  };
-
-  data.prestamos.push(nuevo);
-  saveData(data);
-  closeModal('modalReenganche');
-  renderAll();
-  toast(`🎉 Reenganche de ${original.nombre} registrado exitosamente`, 'success');
+  try {
+    const { prestamo } = await apiFetch('/api/prestamos/' + reenganchemPrestamoId + '/reenganche', {
+      method: 'POST',
+      body: { monto, porciento: porc, cuotas, frecuencia: frec, fechaInicio: fecha }
+    });
+    data.prestamos.push(prestamo);
+    closeModal('modalReenganche');
+    renderAll();
+    toast(`🎉 Reenganche de ${original.nombre} registrado exitosamente`, 'success');
+  } catch (e) {
+    toast(e.message, 'error');
+  }
 }
 
 // ============== MODAL ==============
