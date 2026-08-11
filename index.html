@@ -787,7 +787,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = 'SamKill 0.1';
+const APP_VERSION = 'SamKill 0.2';
 
 document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('appVersionLogin').textContent = APP_VERSION;
@@ -813,9 +813,30 @@ async function apiFetch(url, options = {}) {
   return json;
 }
 
+// La base de datos devuelve los campos numéricos como texto (ej. "6000.00") para no
+// perder precisión en el transporte JSON. Se convierten a Number aquí, en el único
+// punto de entrada de datos del servidor, para que el resto del código (cálculos,
+// sumas con +, etc.) siga funcionando igual que antes con números nativos de JS.
+function normalizarPrestamo(p) {
+  return {
+    ...p,
+    monto: Number(p.monto),
+    porciento: Number(p.porciento),
+    totalPagar: Number(p.totalPagar),
+    cuota: Number(p.cuota),
+    balance: Number(p.balance),
+    totalPagado: Number(p.totalPagado),
+    historialPagos: (p.historialPagos || []).map(h => ({
+      ...h,
+      monto: Number(h.monto),
+      balanceTras: Number(h.balanceTras),
+    })),
+  };
+}
+
 async function cargarEstado() {
   const state = await apiFetch('/api/state');
-  appData.prestamos = state.prestamos;
+  appData.prestamos = (state.prestamos || []).map(normalizarPrestamo);
   appData.users = state.users || [];
 }
 
@@ -1335,8 +1356,9 @@ async function buildPrestamo(nombre, cedula, monto, porc, cuotas, frec, fecha) {
     method: 'POST',
     body: { nombre, cedula, monto, porciento: porc, cuotas, frecuencia: frec, fechaInicio: fecha }
   });
-  getData().prestamos.push(prestamo);
-  return prestamo;
+  const normalizado = normalizarPrestamo(prestamo);
+  getData().prestamos.push(normalizado);
+  return normalizado;
 }
 
 async function guardarPrestamo() {
@@ -1605,15 +1627,17 @@ async function confirmarPago() {
         method: 'POST',
         body: { monto: montoPago, nota }
       });
+      const prestamoNormalizado = normalizarPrestamo(prestamo);
+      const pagoNormalizado = { ...pago, monto: Number(pago.monto), balanceTras: Number(pago.balanceTras) };
       const data = getData();
       const idx = data.prestamos.findIndex(x => x.id === pagoPrestamoId);
       if (idx !== -1) {
-        const historialPagos = [...(data.prestamos[idx].historialPagos || []), pago];
-        data.prestamos[idx] = { ...data.prestamos[idx], ...prestamo, historialPagos };
+        const historialPagos = [...(data.prestamos[idx].historialPagos || []), pagoNormalizado];
+        data.prestamos[idx] = { ...data.prestamos[idx], ...prestamoNormalizado, historialPagos };
       }
       closeModal('modalPago');
       renderAll();
-      if (Number(prestamo.balance) <= 0) {
+      if (prestamoNormalizado.balance <= 0) {
         toast(`🎉 ${prestamo.nombre} pagó completamente su préstamo!`, 'success');
       } else {
         toast(`✅ Pago de ${fmt(pago.monto)} registrado. Balance: ${fmt(prestamo.balance)}`, 'success');
@@ -1807,7 +1831,11 @@ async function guardarEditPrestamo() {
       });
       const data = getData();
       const idx = data.prestamos.findIndex(x => x.id === id);
-      if (idx !== -1) data.prestamos[idx] = { ...data.prestamos[idx], ...prestamo };
+      if (idx !== -1) {
+        // La respuesta del PUT no trae historialPagos: se conserva el que ya estaba en caché
+        const historialPagos = data.prestamos[idx].historialPagos;
+        data.prestamos[idx] = { ...data.prestamos[idx], ...normalizarPrestamo(prestamo), historialPagos };
+      }
       closeModal('modalEditPrestamo');
       renderAll();
       toast(`✅ Préstamo de ${nombre} actualizado correctamente`, 'success');
@@ -1936,7 +1964,7 @@ async function confirmarReenganche() {
         method: 'POST',
         body: { monto, porciento: porc, cuotas, frecuencia: frec, fechaInicio: fecha }
       });
-      data.prestamos.push(prestamo);
+      data.prestamos.push(normalizarPrestamo(prestamo));
       closeModal('modalReenganche');
       renderAll();
       toast(`🎉 Reenganche de ${original.nombre} registrado exitosamente`, 'success');
