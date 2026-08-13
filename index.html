@@ -708,10 +708,10 @@
       Se crea la empresa con su propio espacio (préstamos, usuarios y logo separados) y su primer usuario administrador.
     </div>
     <div class="modal-grid">
-      <div class="field full"><label>Nombre de la Empresa</label><input type="text" id="emp_nombre" placeholder="Ej: Préstamos El Sol"></div>
+      <div class="field full"><label>Nombre de la Empresa</label><input type="text" id="emp_nombre" placeholder="Ej: Préstamos El Sol" oninput="autoGenerarSlug()"></div>
       <div class="field full">
-        <label>Link (solo minúsculas, números y guiones)</label>
-        <input type="text" id="emp_slug" placeholder="ej-prestamos-el-sol">
+        <label>Link (se genera solo — puedes editarlo si quieres)</label>
+        <input type="text" id="emp_slug" placeholder="ej-prestamos-el-sol" oninput="marcarSlugManual()">
       </div>
       <div class="field full"><label>Nombre del Administrador</label><input type="text" id="emp_admin_nombre" placeholder="Nombre completo"></div>
       <div class="field"><label>Usuario</label><input type="text" id="emp_admin_user" placeholder="admin"></div>
@@ -864,7 +864,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = 'SamKill 0.8';
+const APP_VERSION = 'SamKill 0.9';
 
 document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('appVersionLogin').textContent = APP_VERSION;
@@ -982,12 +982,33 @@ async function renderEmpresas() {
 }
 
 let nuevaEmpresaLogoDataUrl = null;
+let slugEditadoManual = false;
+
+function slugify(texto) {
+  const sinAcentos = texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  return sinAcentos
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/[\s_-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function autoGenerarSlug() {
+  if (slugEditadoManual) return;
+  document.getElementById('emp_slug').value = slugify(document.getElementById('emp_nombre').value);
+}
+
+function marcarSlugManual() {
+  slugEditadoManual = true;
+}
 
 function abrirNuevaEmpresa() {
   ['emp_nombre','emp_slug','emp_admin_nombre','emp_admin_user','emp_admin_pass'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('emp_logo_file').value = '';
   document.getElementById('empLogoPreview').innerHTML = 'RYM';
   nuevaEmpresaLogoDataUrl = null;
+  slugEditadoManual = false;
   document.getElementById('empresaError').style.display = 'none';
   openModal('modalEmpresa');
 }
