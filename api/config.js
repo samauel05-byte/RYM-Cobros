@@ -1,12 +1,19 @@
 import { sql } from './_lib/db.js';
 import { requireAdmin } from './_lib/auth.js';
+import { resolveEmpresa } from './_lib/empresa.js';
 
 const MAX_LOGO_LENGTH = 700_000; // ~500KB de imagen en base64
 
 export default async function handler(req, res) {
   if (req.method === 'GET') {
-    const rows = await sql`select logo_data_url as "logoDataUrl" from app_config where id = 1`;
-    res.status(200).json({ logoDataUrl: rows[0]?.logoDataUrl || null });
+    // Público (necesario para mostrar el logo/nombre antes de iniciar sesión).
+    // ?empresa=slug identifica la empresa por su link; sin slug cae en la empresa por defecto.
+    const empresa = await resolveEmpresa(req.query.empresa);
+    if (!empresa) {
+      res.status(404).json({ error: 'Empresa no encontrada' });
+      return;
+    }
+    res.status(200).json({ logoDataUrl: empresa.logoDataUrl || null, nombre: empresa.nombre, slug: empresa.slug });
     return;
   }
 
@@ -26,7 +33,7 @@ export default async function handler(req, res) {
       }
     }
 
-    await sql`update app_config set logo_data_url = ${logoDataUrl}, updated_at = now() where id = 1`;
+    await sql`update empresas set logo_data_url = ${logoDataUrl} where id = ${admin.empresaId}`;
     res.status(200).json({ logoDataUrl });
     return;
   }

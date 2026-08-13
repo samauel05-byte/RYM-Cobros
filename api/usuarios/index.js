@@ -6,7 +6,7 @@ export default async function handler(req, res) {
   if (req.method === 'GET') {
     const user = requireAdmin(req, res);
     if (!user) return;
-    const users = await sql`select id, nombre, usuario as "user", role from usuarios order by id`;
+    const users = await sql`select id, nombre, usuario as "user", role from usuarios where empresa_id = ${user.empresaId} order by id`;
     res.status(200).json({ users });
     return;
   }
@@ -24,15 +24,15 @@ export default async function handler(req, res) {
       res.status(400).json({ error: 'role inválido' });
       return;
     }
-    const dup = await sql`select id from usuarios where usuario = ${usuario}`;
+    const dup = await sql`select id from usuarios where usuario = ${usuario} and empresa_id = ${admin.empresaId}`;
     if (dup.length) {
       res.status(409).json({ error: 'Ese usuario ya existe' });
       return;
     }
     const hash = await bcrypt.hash(pass, 10);
     const rows = await sql`
-      insert into usuarios (nombre, usuario, password_hash, role)
-      values (${nombre}, ${usuario}, ${hash}, ${role})
+      insert into usuarios (empresa_id, nombre, usuario, password_hash, role)
+      values (${admin.empresaId}, ${nombre}, ${usuario}, ${hash}, ${role})
       returning id, nombre, usuario as "user", role
     `;
     res.status(201).json({ user: rows[0] });

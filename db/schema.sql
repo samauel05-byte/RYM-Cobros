@@ -1,16 +1,29 @@
--- RYM Soluciones - esquema inicial (Neon Postgres)
+-- Sepi - esquema (Neon Postgres) - multi-empresa
+
+CREATE TABLE IF NOT EXISTS empresas (
+  id             SERIAL PRIMARY KEY,
+  nombre         TEXT NOT NULL,
+  slug           TEXT NOT NULL UNIQUE,
+  logo_data_url  TEXT,
+  es_default     BOOLEAN NOT NULL DEFAULT false,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 
 CREATE TABLE IF NOT EXISTS usuarios (
-  id            SERIAL PRIMARY KEY,
-  nombre        TEXT NOT NULL,
-  usuario       TEXT NOT NULL UNIQUE,
-  password_hash TEXT NOT NULL,
-  role          TEXT NOT NULL CHECK (role IN ('admin', 'cajero', 'viewer')),
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+  id              SERIAL PRIMARY KEY,
+  empresa_id      INTEGER NOT NULL REFERENCES empresas(id),
+  nombre          TEXT NOT NULL,
+  usuario         TEXT NOT NULL,
+  password_hash   TEXT NOT NULL,
+  role            TEXT NOT NULL CHECK (role IN ('admin', 'cajero', 'viewer')),
+  is_super_admin  BOOLEAN NOT NULL DEFAULT false,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT usuarios_empresa_usuario_key UNIQUE (empresa_id, usuario)
 );
 
 CREATE TABLE IF NOT EXISTS prestamos (
   id             SERIAL PRIMARY KEY,
+  empresa_id     INTEGER NOT NULL REFERENCES empresas(id),
   nombre         TEXT NOT NULL,
   cedula         TEXT,
   monto          NUMERIC(14,2) NOT NULL,
@@ -40,12 +53,5 @@ CREATE TABLE IF NOT EXISTS pagos (
 
 CREATE INDEX IF NOT EXISTS idx_pagos_prestamo_id ON pagos(prestamo_id);
 CREATE INDEX IF NOT EXISTS idx_prestamos_nombre ON prestamos(nombre);
-
--- Fila única con configuración global (logo, etc.) visible para todos los usuarios
-CREATE TABLE IF NOT EXISTS app_config (
-  id             SMALLINT PRIMARY KEY DEFAULT 1,
-  logo_data_url  TEXT,
-  updated_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
-  CONSTRAINT app_config_singleton CHECK (id = 1)
-);
-INSERT INTO app_config (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
+CREATE INDEX IF NOT EXISTS idx_prestamos_empresa_id ON prestamos(empresa_id);
+CREATE INDEX IF NOT EXISTS idx_usuarios_empresa_id ON usuarios(empresa_id);

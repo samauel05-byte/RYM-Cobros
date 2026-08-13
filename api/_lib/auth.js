@@ -56,7 +56,15 @@ export function getCurrentUser(req) {
 
 export function setSessionCookie(res, user) {
   const exp = Date.now() + SESSION_TTL_SECONDS * 1000;
-  const token = signSession({ id: user.id, nombre: user.nombre, user: user.user, role: user.role, exp });
+  const token = signSession({
+    id: user.id,
+    nombre: user.nombre,
+    user: user.user,
+    role: user.role,
+    empresaId: user.empresaId,
+    isSuperAdmin: !!user.isSuperAdmin,
+    exp,
+  });
   res.setHeader(
     'Set-Cookie',
     `${COOKIE_NAME}=${encodeURIComponent(token)}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${SESSION_TTL_SECONDS}`
@@ -91,6 +99,16 @@ export function requireCajeroOrAdmin(req, res) {
   if (!user) return null;
   if (user.role !== 'admin' && user.role !== 'cajero') {
     res.status(403).json({ error: 'No tienes permiso para esta acción' });
+    return null;
+  }
+  return user;
+}
+
+export function requireSuperAdmin(req, res) {
+  const user = requireUser(req, res);
+  if (!user) return null;
+  if (!user.isSuperAdmin) {
+    res.status(403).json({ error: 'Requiere permisos de super administrador' });
     return null;
   }
   return user;

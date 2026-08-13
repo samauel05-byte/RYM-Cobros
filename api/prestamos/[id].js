@@ -21,7 +21,7 @@ export default async function handler(req, res) {
     }
     const { nombre, cedula, monto, porciento, cuotas, frecuencia, fechaInicio } = body;
 
-    const existingRows = await sql`select total_pagado from prestamos where id = ${id}`;
+    const existingRows = await sql`select total_pagado from prestamos where id = ${id} and empresa_id = ${user.empresaId}`;
     if (!existingRows[0]) {
       res.status(404).json({ error: 'Préstamo no encontrado' });
       return;
@@ -35,7 +35,7 @@ export default async function handler(req, res) {
         nombre = ${nombre}, cedula = ${cedula || null}, monto = ${monto}, porciento = ${porciento},
         frecuencia = ${frecuencia}, cuotas = ${cuotas}, total_pagar = ${total}, cuota = ${cuota},
         balance = ${nuevoBalance}, fecha_inicio = ${fechaInicio || null}, updated_at = now()
-      where id = ${id}
+      where id = ${id} and empresa_id = ${user.empresaId}
       returning id, nombre, cedula, monto, porciento, frecuencia, cuotas,
         total_pagar as "totalPagar", cuota, balance, total_pagado as "totalPagado",
         fecha_inicio as "fechaInicio", estado, reenganche_de as "reenganchemDe"
@@ -47,7 +47,7 @@ export default async function handler(req, res) {
   if (req.method === 'DELETE') {
     const user = requireAdmin(req, res);
     if (!user) return;
-    const rows = await sql`delete from prestamos where id = ${id} returning id`;
+    const rows = await sql`delete from prestamos where id = ${id} and empresa_id = ${user.empresaId} returning id`;
     if (!rows[0]) {
       res.status(404).json({ error: 'Préstamo no encontrado' });
       return;

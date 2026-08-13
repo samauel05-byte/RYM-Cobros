@@ -27,8 +27,8 @@ export default async function handler(req, res) {
   try {
     await client.query('BEGIN');
     const { rows } = await client.query(
-      'select balance, total_pagado from prestamos where id = $1 for update',
-      [id]
+      'select balance, total_pagado from prestamos where id = $1 and empresa_id = $2 for update',
+      [id, user.empresaId]
     );
     const p = rows[0];
     if (!p) {

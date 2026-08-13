@@ -20,6 +20,7 @@ export default async function handler(req, res) {
           '[]'::json
         ) as "historialPagos"
       from prestamos p
+      where p.empresa_id = ${user.empresaId}
       order by p.id
     `;
     res.status(200).json({ prestamos });
@@ -40,8 +41,8 @@ export default async function handler(req, res) {
     const { cuota, total } = calcPrestamo(Number(monto), Number(porciento), Number(cuotas), frecuencia);
 
     const rows = await sql`
-      insert into prestamos (nombre, cedula, monto, porciento, frecuencia, cuotas, total_pagar, cuota, balance, total_pagado, fecha_inicio, estado)
-      values (${nombre}, ${cedula || null}, ${monto}, ${porciento}, ${frecuencia}, ${cuotas}, ${total}, ${cuota}, ${total}, 0, ${fechaInicio || null}, 'activo')
+      insert into prestamos (empresa_id, nombre, cedula, monto, porciento, frecuencia, cuotas, total_pagar, cuota, balance, total_pagado, fecha_inicio, estado)
+      values (${user.empresaId}, ${nombre}, ${cedula || null}, ${monto}, ${porciento}, ${frecuencia}, ${cuotas}, ${total}, ${cuota}, ${total}, 0, ${fechaInicio || null}, 'activo')
       returning id, nombre, cedula, monto, porciento, frecuencia, cuotas,
         total_pagar as "totalPagar", cuota, balance, total_pagado as "totalPagado",
         fecha_inicio as "fechaInicio", estado, reenganche_de as "reenganchemDe"

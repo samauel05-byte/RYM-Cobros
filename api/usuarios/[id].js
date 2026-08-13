@@ -22,7 +22,7 @@ export default async function handler(req, res) {
       res.status(400).json({ error: 'role inválido' });
       return;
     }
-    const dup = await sql`select id from usuarios where usuario = ${usuario} and id != ${id}`;
+    const dup = await sql`select id from usuarios where usuario = ${usuario} and id != ${id} and empresa_id = ${admin.empresaId}`;
     if (dup.length) {
       res.status(409).json({ error: 'Ese nombre de usuario ya existe' });
       return;
@@ -33,13 +33,13 @@ export default async function handler(req, res) {
       const hash = await bcrypt.hash(pass, 10);
       rows = await sql`
         update usuarios set nombre = ${nombre}, usuario = ${usuario}, role = ${role}, password_hash = ${hash}
-        where id = ${id}
+        where id = ${id} and empresa_id = ${admin.empresaId}
         returning id, nombre, usuario as "user", role
       `;
     } else {
       rows = await sql`
         update usuarios set nombre = ${nombre}, usuario = ${usuario}, role = ${role}
-        where id = ${id}
+        where id = ${id} and empresa_id = ${admin.empresaId}
         returning id, nombre, usuario as "user", role
       `;
     }
@@ -58,7 +58,7 @@ export default async function handler(req, res) {
       res.status(400).json({ error: 'No puedes eliminar tu propio usuario' });
       return;
     }
-    const rows = await sql`delete from usuarios where id = ${id} returning id`;
+    const rows = await sql`delete from usuarios where id = ${id} and empresa_id = ${admin.empresaId} returning id`;
     if (!rows[0]) {
       res.status(404).json({ error: 'Usuario no encontrado' });
       return;

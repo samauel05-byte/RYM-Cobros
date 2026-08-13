@@ -23,12 +23,13 @@ export default async function handler(req, res) {
         '[]'::json
       ) as "historialPagos"
     from prestamos p
+    where p.empresa_id = ${user.empresaId}
     order by p.id
   `;
 
   let users = [];
   if (user.role === 'admin') {
-    users = await sql`select id, nombre, usuario as "user", role from usuarios order by id`;
+    users = await sql`select id, nombre, usuario as "user", role from usuarios where empresa_id = ${user.empresaId} order by id`;
   }
 
   res.status(200).json({ prestamos, users });
