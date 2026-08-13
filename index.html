@@ -717,6 +717,13 @@
       <div class="field"><label>Usuario</label><input type="text" id="emp_admin_user" placeholder="admin"></div>
       <div class="field"><label>Contraseña</label><input type="password" id="emp_admin_pass" placeholder="••••••••"></div>
     </div>
+    <div style="display:flex;align-items:center;gap:16px;margin-top:14px">
+      <div class="s-logo" id="empLogoPreview" style="width:56px;height:56px;border-radius:12px;font-size:16px;flex-shrink:0">RYM</div>
+      <div class="field full" style="margin:0">
+        <label>Logo de la empresa (opcional — PNG, JPG o SVG, máx. 500KB)</label>
+        <input type="file" id="emp_logo_file" accept="image/*" onchange="previsualizarLogoEmpresa(event)">
+      </div>
+    </div>
     <div id="empresaError" style="display:none;color:var(--red);font-size:13px;margin-top:10px;padding:10px;background:rgba(231,76,60,.1);border-radius:8px"></div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('modalEmpresa')">Cancelar</button>
@@ -857,7 +864,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = 'SamKill 0.7';
+const APP_VERSION = 'SamKill 0.8';
 
 document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('appVersionLogin').textContent = APP_VERSION;
@@ -974,10 +981,31 @@ async function renderEmpresas() {
   }
 }
 
+let nuevaEmpresaLogoDataUrl = null;
+
 function abrirNuevaEmpresa() {
   ['emp_nombre','emp_slug','emp_admin_nombre','emp_admin_user','emp_admin_pass'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('emp_logo_file').value = '';
+  document.getElementById('empLogoPreview').innerHTML = 'RYM';
+  nuevaEmpresaLogoDataUrl = null;
   document.getElementById('empresaError').style.display = 'none';
   openModal('modalEmpresa');
+}
+
+function previsualizarLogoEmpresa(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (file.size > 500 * 1024) {
+    toast('La imagen es muy grande (máximo 500KB)', 'error');
+    event.target.value = '';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    nuevaEmpresaLogoDataUrl = reader.result;
+    document.getElementById('empLogoPreview').innerHTML = `<img class="logo-img" src="${nuevaEmpresaLogoDataUrl}" alt="Logo">`;
+  };
+  reader.readAsDataURL(file);
 }
 
 async function guardarEmpresa() {
@@ -997,7 +1025,7 @@ async function guardarEmpresa() {
     try {
       const { empresa } = await apiFetch('/api/empresas', {
         method: 'POST',
-        body: { nombre, slug, adminNombre, adminUsuario, adminPass }
+        body: { nombre, slug, adminNombre, adminUsuario, adminPass, logoDataUrl: nuevaEmpresaLogoDataUrl }
       });
       closeModal('modalEmpresa');
       toast(`🎉 Empresa "${empresa.nombre}" creada — link: ${location.origin}/${empresa.slug}`, 'success');

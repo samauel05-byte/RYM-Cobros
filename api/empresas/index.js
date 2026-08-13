@@ -3,6 +3,7 @@ import { sql } from '../_lib/db.js';
 import { requireSuperAdmin } from '../_lib/auth.js';
 
 const SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+const MAX_LOGO_LENGTH = 700_000; // ~500KB de imagen en base64
 
 export default async function handler(req, res) {
   if (req.method === 'GET') {
@@ -23,7 +24,7 @@ export default async function handler(req, res) {
     const user = requireSuperAdmin(req, res);
     if (!user) return;
 
-    const { nombre, slug, adminNombre, adminUsuario, adminPass } = req.body || {};
+    const { nombre, slug, adminNombre, adminUsuario, adminPass, logoDataUrl } = req.body || {};
     if (!nombre || !slug || !adminNombre || !adminUsuario || !adminPass) {
       res.status(400).json({ error: 'Complete todos los campos' });
       return;
@@ -37,6 +38,16 @@ export default async function handler(req, res) {
       res.status(400).json({ error: 'La contraseña del administrador debe tener al menos 4 caracteres' });
       return;
     }
+    if (logoDataUrl) {
+      if (typeof logoDataUrl !== 'string' || !logoDataUrl.startsWith('data:image/')) {
+        res.status(400).json({ error: 'Formato de imagen inválido' });
+        return;
+      }
+      if (logoDataUrl.length > MAX_LOGO_LENGTH) {
+        res.status(400).json({ error: 'La imagen es muy grande (máximo ~500KB)' });
+        return;
+      }
+    }
 
     const dupSlug = await sql`select id from empresas where slug = ${slugNormalizado}`;
     if (dupSlug.length) {
@@ -45,7 +56,7 @@ export default async function handler(req, res) {
     }
 
     const empresaRows = await sql`
-      insert into empresas (nombre, slug) values (${nombre}, ${slugNormalizado})
+      insert into empresas (nombre, slug, logo_data_url) values (${nombre}, ${slugNormalizado}, ${logoDataUrl || null})
       returning id, nombre, slug
     `;
     const empresa = empresaRows[0];
