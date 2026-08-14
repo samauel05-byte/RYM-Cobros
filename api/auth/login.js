@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { sql } from '../_lib/db.js';
 import { setSessionCookie } from '../_lib/auth.js';
-import { resolveEmpresa } from '../_lib/empresa.js';
+import { resolveEmpresa, PLATFORM_SLUG } from '../_lib/empresa.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -11,6 +11,30 @@ export default async function handler(req, res) {
   const { user, pass, empresaSlug } = req.body || {};
   if (!user || !pass) {
     res.status(400).json({ error: 'Usuario y contraseña son requeridos' });
+    return;
+  }
+
+  // Link reservado /admin: login de plataforma, no ligado a ninguna empresa.
+  if (empresaSlug === PLATFORM_SLUG) {
+    const rows = await sql`
+      select id, nombre, usuario as "user", password_hash, role, is_super_admin as "isSuperAdmin"
+      from usuarios where usuario = ${user} and empresa_id is null
+    `;
+    const found = rows[0];
+    if (!found || !(await bcrypt.compare(pass, found.password_hash))) {
+      res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
+      return;
+    }
+    const publicUser = {
+      id: found.id,
+      nombre: found.nombre,
+      user: found.user,
+      role: found.role,
+      isSuperAdmin: found.isSuperAdmin,
+      empresaId: null,
+    };
+    setSessionCookie(res, publicUser);
+    res.status(200).json({ user: publicUser, empresa: null });
     return;
   }
 

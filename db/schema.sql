@@ -9,9 +9,11 @@ CREATE TABLE IF NOT EXISTS empresas (
   created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- empresa_id es NULL únicamente para cuentas de plataforma (super admin) que no
+-- pertenecen a ninguna empresa — entran por el link reservado /admin.
 CREATE TABLE IF NOT EXISTS usuarios (
   id              SERIAL PRIMARY KEY,
-  empresa_id      INTEGER NOT NULL REFERENCES empresas(id),
+  empresa_id      INTEGER REFERENCES empresas(id),
   nombre          TEXT NOT NULL,
   usuario         TEXT NOT NULL,
   password_hash   TEXT NOT NULL,
@@ -20,6 +22,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
   CONSTRAINT usuarios_empresa_usuario_key UNIQUE (empresa_id, usuario)
 );
+CREATE UNIQUE INDEX IF NOT EXISTS usuarios_platform_usuario_key ON usuarios (usuario) WHERE empresa_id IS NULL;
 
 CREATE TABLE IF NOT EXISTS prestamos (
   id             SERIAL PRIMARY KEY,

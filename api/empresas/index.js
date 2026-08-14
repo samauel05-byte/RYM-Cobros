@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { sql } from '../_lib/db.js';
 import { requireSuperAdmin } from '../_lib/auth.js';
+import { PLATFORM_SLUG } from '../_lib/empresa.js';
 
 const SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const MAX_LOGO_LENGTH = 700_000; // ~500KB de imagen en base64
@@ -32,6 +33,10 @@ export default async function handler(req, res) {
     const slugNormalizado = String(slug).trim().toLowerCase();
     if (!SLUG_RE.test(slugNormalizado)) {
       res.status(400).json({ error: 'El link solo puede tener letras minúsculas, números y guiones (ej: mi-empresa)' });
+      return;
+    }
+    if (slugNormalizado === PLATFORM_SLUG) {
+      res.status(400).json({ error: `El link "${PLATFORM_SLUG}" está reservado, elige otro` });
       return;
     }
     if (adminPass.length < 4) {

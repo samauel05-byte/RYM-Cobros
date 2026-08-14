@@ -1,5 +1,8 @@
 import { sql } from './db.js';
 
+// Slug reservado para el panel de super admin (no ligado a ninguna empresa).
+export const PLATFORM_SLUG = 'admin';
+
 // Resuelve la empresa activa a partir del slug de la URL. Sin slug, cae en la
 // empresa marcada es_default=true (RYM Soluciones), para que el link actual
 // sin slug siga funcionando igual que antes. Si se pasa un slug pero no

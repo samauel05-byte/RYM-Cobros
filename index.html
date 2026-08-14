@@ -398,6 +398,7 @@
       <div><div class="s-title" id="sidebarTitle">RYM Soluciones</div><div class="s-sub">Sistema de Préstamos</div></div>
     </div>
     <nav>
+      <div id="navTenantOnly">
       <div class="nav-section">Principal</div>
       <button class="nav-item active" onclick="showPage('dashboard',this)">
         <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
@@ -420,6 +421,7 @@
         <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
         Reenganche
       </button>
+      </div>
       <div class="nav-section" id="adminNav" style="display:none">Administración</div>
       <button class="nav-item" id="navUsers" style="display:none" onclick="showPage('usuarios',this)">
         <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -864,7 +866,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = 'SamKill 0.9';
+const APP_VERSION = 'SamKill 0.10';
 
 document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('appVersionLogin').textContent = APP_VERSION;
@@ -876,12 +878,16 @@ document.addEventListener('DOMContentLoaded', function() {
 // Sin segmento, se usa la empresa por defecto (RYM Soluciones) — así el link
 // original sigue funcionando igual que siempre.
 const EMPRESA_SLUG = location.pathname.split('/').filter(Boolean)[0] || null;
+// Link reservado para el panel de super admin (no ligado a ninguna empresa).
+const PLATFORM_SLUG = 'admin';
+const ES_PLATAFORMA = EMPRESA_SLUG === PLATFORM_SLUG;
 
 // ============== LOGO Y MARCA (favicon, login, sidebar) ==============
 let logoActualDataUrl = null;
 let logoPreviewDataUrl = null;
 
-function aplicarLogo(url) {
+function aplicarLogo(url, fallbackText) {
+  fallbackText = fallbackText || 'RYM';
   logoActualDataUrl = url;
   const favicon = document.getElementById('faviconLink');
   if (favicon) {
@@ -889,8 +895,8 @@ function aplicarLogo(url) {
   }
   const login = document.getElementById('logoCircleLogin');
   const sidebar = document.getElementById('logoCircleSidebar');
-  if (login) login.innerHTML = url ? `<img class="logo-img" src="${url}" alt="Logo">` : 'RYM';
-  if (sidebar) sidebar.innerHTML = url ? `<img class="logo-img" src="${url}" alt="Logo">` : 'RYM';
+  if (login) login.innerHTML = url ? `<img class="logo-img" src="${url}" alt="Logo">` : fallbackText;
+  if (sidebar) sidebar.innerHTML = url ? `<img class="logo-img" src="${url}" alt="Logo">` : fallbackText;
 }
 
 function aplicarNombreEmpresa(nombre) {
@@ -901,6 +907,11 @@ function aplicarNombreEmpresa(nombre) {
 }
 
 async function cargarConfigGlobal() {
+  if (ES_PLATAFORMA) {
+    aplicarLogo(null, 'SEPI');
+    aplicarNombreEmpresa('SEPI — Panel de Administración');
+    return;
+  }
   try {
     const qs = EMPRESA_SLUG ? '?empresa=' + encodeURIComponent(EMPRESA_SLUG) : '';
     const { logoDataUrl, nombre } = await apiFetch('/api/config' + qs);
@@ -1140,6 +1151,17 @@ function enterApp(user) {
   document.getElementById('appScreen').style.display = 'block';
   document.getElementById('sidebarAvatar').textContent = user.nombre.charAt(0).toUpperCase();
   document.getElementById('sidebarName').textContent = user.nombre;
+
+  // Cuenta de plataforma (sin empresa): panel exclusivo de Empresas, nada de datos de negocio.
+  if (user.empresaId === null) {
+    document.getElementById('sidebarRole').textContent = 'Super Administrador';
+    document.getElementById('navTenantOnly').style.display = 'none';
+    document.getElementById('adminNav').style.display = 'block';
+    document.getElementById('navEmpresas').style.display = 'flex';
+    showPage('empresas', document.getElementById('navEmpresas'));
+    return;
+  }
+
   document.getElementById('sidebarRole').textContent = user.role === 'admin' ? 'Administrador' : user.role === 'cajero' ? 'Cajero' : 'Solo Lectura';
   if (user.role === 'admin') {
     document.getElementById('adminNav').style.display = 'block';
@@ -1161,7 +1183,7 @@ function enterApp(user) {
   try {
     const { user, empresa } = await apiFetch('/api/auth/me');
     if (empresa) { aplicarLogo(empresa.logoDataUrl); aplicarNombreEmpresa(empresa.nombre); }
-    await cargarEstado();
+    if (user.empresaId !== null) await cargarEstado();
     enterApp(user);
   } catch {
     // No hay sesión activa: se queda en la pantalla de login
@@ -1257,7 +1279,7 @@ async function doLogin() {
     try {
       const { user, empresa } = await apiFetch('/api/auth/login', { method: 'POST', body: { user: u, pass: p, empresaSlug: EMPRESA_SLUG } });
       if (empresa) { aplicarLogo(empresa.logoDataUrl); aplicarNombreEmpresa(empresa.nombre); }
-      await cargarEstado();
+      if (user.empresaId !== null) await cargarEstado();
       enterApp(user);
     } catch (e) {
       errEl.textContent = e.message || 'Usuario o contraseña incorrectos';
