@@ -876,7 +876,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = 'SamKill 0.12';
+const APP_VERSION = 'SamKill 0.13';
 
 document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('appVersionLogin').textContent = APP_VERSION;
@@ -1011,7 +1011,7 @@ async function verDetalleEmpresa(id) {
   content.innerHTML = '<div class="empty-state">Cargando...</div>';
   openModal('modalEmpresaDetalle');
   try {
-    const { empresa, usuarios, prestamos, totales } = await apiFetch('/api/empresas/' + id);
+    const { empresa, usuarios, prestamos, totales } = await apiFetch('/api/empresas?id=' + id);
 
     const usuariosHtml = usuarios.map(u => `
       <tr>
@@ -1107,7 +1107,7 @@ async function crearUsuarioEmpresa() {
   }
   await conGuardia('crearUsuarioEmpresa', async () => {
     try {
-      await apiFetch('/api/empresas/' + empresaDetalleActualId + '/usuarios', {
+      await apiFetch('/api/empresas?id=' + empresaDetalleActualId, {
         method: 'POST',
         body: { nombre, user, pass, role }
       });
@@ -1130,7 +1130,7 @@ async function restablecerPasswordEmpresa(empresaId, userId, nombreUsuario) {
   }
   await conGuardia('restablecerPasswordEmpresa:' + userId, async () => {
     try {
-      await apiFetch('/api/empresas/' + empresaId + '/usuarios?userId=' + userId, {
+      await apiFetch('/api/empresas?id=' + empresaId + '&userId=' + userId, {
         method: 'PUT',
         body: { pass: nuevaPass }
       });
@@ -2089,7 +2089,7 @@ async function confirmarPago() {
   }
   await conGuardia('confirmarPago:' + pagoPrestamoId, async () => {
     try {
-      const { prestamo, pago } = await apiFetch('/api/prestamos/' + pagoPrestamoId + '/pagos', {
+      const { prestamo, pago } = await apiFetch('/api/prestamos/' + pagoPrestamoId + '?action=pago', {
         method: 'POST',
         body: { monto: montoPago, nota }
       });
@@ -2155,7 +2155,7 @@ async function eliminarUsuario(id) {
   if (!confirm('¿Eliminar este usuario?')) return;
   await conGuardia('eliminarUsuario:' + id, async () => {
   try {
-    await apiFetch('/api/usuarios/' + id, { method: 'DELETE' });
+    await apiFetch('/api/usuarios?id=' + id, { method: 'DELETE' });
     const data = getData();
     data.users = data.users.filter(u => u.id !== id);
     renderUsuarios();
@@ -2209,7 +2209,7 @@ async function guardarUsuario() {
   try {
     if (editId) {
       // EDITAR usuario existente
-      const { user: updated } = await apiFetch('/api/usuarios/' + editId, {
+      const { user: updated } = await apiFetch('/api/usuarios?id=' + editId, {
         method: 'PUT',
         body: { nombre, user, pass: pass || undefined, role }
       });
@@ -2426,7 +2426,7 @@ async function confirmarReenganche() {
 
   await conGuardia('confirmarReenganche:' + reenganchemPrestamoId, async () => {
     try {
-      const { prestamo } = await apiFetch('/api/prestamos/' + reenganchemPrestamoId + '/reenganche', {
+      const { prestamo } = await apiFetch('/api/prestamos/' + reenganchemPrestamoId + '?action=reenganche', {
         method: 'POST',
         body: { monto, porciento: porc, cuotas, frecuencia: frec, fechaInicio: fecha }
       });
