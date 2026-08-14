@@ -734,6 +734,16 @@
   </div>
 </div>
 
+<!-- MODAL DETALLE EMPRESA -->
+<div class="modal-overlay" id="modalEmpresaDetalle">
+  <div class="modal" style="width:680px">
+    <div id="empresaDetalleContent"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modalEmpresaDetalle')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL REENGANCHE -->
 <div class="modal-overlay" id="modalReenganche">
   <div class="modal" style="width:540px">
@@ -866,7 +876,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = 'SamKill 0.10';
+const APP_VERSION = 'SamKill 0.11';
 
 document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('appVersionLogin').textContent = APP_VERSION;
@@ -984,12 +994,151 @@ async function renderEmpresas() {
           <div style="font-size:12px;color:var(--muted);margin-top:4px">${e.totalUsuarios} usuario(s) • ${e.totalPrestamos} préstamo(s)</div>
         </div>
         <div style="background:var(--dark3);border-radius:8px;padding:8px 12px;font-size:12px;color:var(--gold);word-break:break-all">${base}/${e.slug}</div>
+        <button class="btn btn-blue" style="font-size:12px;padding:8px 14px" onclick="verDetalleEmpresa(${e.id})">🔍 Ver Detalle</button>
       </div>
     `).join('') || '<div class="empty-state">Sin empresas todavía</div>';
   } catch (e) {
     container.innerHTML = '';
     toast(e.message, 'error');
   }
+}
+
+let empresaDetalleActualId = null;
+
+async function verDetalleEmpresa(id) {
+  empresaDetalleActualId = id;
+  const content = document.getElementById('empresaDetalleContent');
+  content.innerHTML = '<div class="empty-state">Cargando...</div>';
+  openModal('modalEmpresaDetalle');
+  try {
+    const { empresa, usuarios, prestamos, totales } = await apiFetch('/api/empresas/' + id);
+
+    const usuariosHtml = usuarios.map(u => `
+      <tr>
+        <td>${u.nombre}</td>
+        <td>@${u.user}</td>
+        <td><span class="role-badge role-${u.role}">${u.role.toUpperCase()}</span></td>
+        <td><button class="btn btn-outline" style="padding:6px 10px;font-size:11px" onclick="restablecerPasswordEmpresa(${id}, ${u.id}, '${u.nombre.replace(/'/g, "\\'")}')">🔑 Restablecer clave</button></td>
+      </tr>
+    `).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--muted)">Sin usuarios</td></tr>';
+
+    const prestamosHtml = prestamos.map(p => `
+      <tr>
+        <td>${p.nombre}</td>
+        <td>${p.cedula || 'Sin cédula'}</td>
+        <td>${fmt(p.monto)}</td>
+        <td style="color:${Number(p.balance) > 0 ? 'var(--red)' : 'var(--green)'}">${fmt(p.balance)}</td>
+        <td><span class="badge ${p.frecuencia}" style="font-size:10px">${p.frecuencia}</span></td>
+        <td>${Number(p.balance) <= 0 ? '<span class="badge pagado">Pagado</span>' : '<span class="badge active">Activo</span>'}</td>
+      </tr>
+    `).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--muted)">Sin préstamos todavía</td></tr>';
+
+    content.innerHTML = `
+      <h2 style="margin-bottom:16px">🏢 ${empresa.nombre}</h2>
+      <div class="desglose-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:20px">
+        <div class="d-card"><div class="d-label">Total Prestado</div><div class="d-value" style="color:var(--gold)">${fmt(totales.totalPrestado)}</div></div>
+        <div class="d-card"><div class="d-label">Saldo Pendiente</div><div class="d-value" style="color:var(--red)">${fmt(totales.saldoPendiente)}</div></div>
+        <div class="d-card"><div class="d-label">Total Cobrado</div><div class="d-value" style="color:var(--green)">${fmt(totales.totalCobrado)}</div></div>
+      </div>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">👤 Usuarios (${usuarios.length})</div>
+        <button class="btn btn-gold" style="padding:6px 12px;font-size:11px" onclick="toggleFormNuevoUsuarioEmpresa()">+ Nuevo Usuario</button>
+      </div>
+      <div id="formNuevoUsuarioEmpresa" style="display:none;background:var(--dark3);border-radius:10px;padding:14px;margin-bottom:14px">
+        <div class="modal-grid">
+          <div class="field full"><label>Nombre</label><input type="text" id="ued_nombre" placeholder="Nombre completo"></div>
+          <div class="field"><label>Usuario</label><input type="text" id="ued_user" placeholder="usuario123"></div>
+          <div class="field"><label>Contraseña</label><input type="password" id="ued_pass" placeholder="••••••••"></div>
+          <div class="field full"><label>Rol</label>
+            <select id="ued_role">
+              <option value="cajero">Cajero (puede registrar pagos)</option>
+              <option value="viewer">Solo lectura</option>
+              <option value="admin">Administrador (acceso total)</option>
+            </select>
+          </div>
+        </div>
+        <div id="empresaUsuarioError" style="display:none;color:var(--red);font-size:12px;margin-top:8px"></div>
+        <div style="margin-top:10px;display:flex;gap:8px">
+          <button class="btn btn-gold" style="font-size:12px;padding:8px 14px" onclick="crearUsuarioEmpresa()">Crear</button>
+          <button class="btn btn-outline" style="font-size:12px;padding:8px 14px" onclick="toggleFormNuevoUsuarioEmpresa()">Cancelar</button>
+        </div>
+      </div>
+      <table class="desglose-table" style="margin-bottom:20px">
+        <thead><tr><th>Nombre</th><th>Usuario</th><th>Rol</th><th></th></tr></thead>
+        <tbody>${usuariosHtml}</tbody>
+      </table>
+
+      <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">💰 Personas que han cogido prestado (${prestamos.length})</div>
+      <div style="overflow-x:auto">
+        <table class="desglose-table" style="min-width:600px">
+          <thead><tr><th>Cliente</th><th>Cédula</th><th>Monto</th><th>Balance</th><th>Modalidad</th><th>Estado</th></tr></thead>
+          <tbody>${prestamosHtml}</tbody>
+        </table>
+      </div>
+    `;
+  } catch (e) {
+    content.innerHTML = `<div class="empty-state">${e.message}</div>`;
+  }
+}
+
+function toggleFormNuevoUsuarioEmpresa() {
+  const el = document.getElementById('formNuevoUsuarioEmpresa');
+  const abrir = el.style.display === 'none';
+  el.style.display = abrir ? 'block' : 'none';
+  if (abrir) {
+    ['ued_nombre','ued_user','ued_pass'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('ued_role').value = 'cajero';
+    document.getElementById('empresaUsuarioError').style.display = 'none';
+  }
+}
+
+async function crearUsuarioEmpresa() {
+  const nombre = document.getElementById('ued_nombre').value.trim();
+  const user = document.getElementById('ued_user').value.trim();
+  const pass = document.getElementById('ued_pass').value;
+  const role = document.getElementById('ued_role').value;
+  const errEl = document.getElementById('empresaUsuarioError');
+  errEl.style.display = 'none';
+  if (!nombre || !user || !pass) {
+    errEl.textContent = 'Complete todos los campos';
+    errEl.style.display = 'block';
+    return;
+  }
+  await conGuardia('crearUsuarioEmpresa', async () => {
+    try {
+      await apiFetch('/api/empresas/' + empresaDetalleActualId + '/usuarios', {
+        method: 'POST',
+        body: { nombre, user, pass, role }
+      });
+      toast('Usuario creado exitosamente', 'success');
+      verDetalleEmpresa(empresaDetalleActualId);
+      renderEmpresas();
+    } catch (e) {
+      errEl.textContent = e.message;
+      errEl.style.display = 'block';
+    }
+  });
+}
+
+async function restablecerPasswordEmpresa(empresaId, userId, nombreUsuario) {
+  const nuevaPass = prompt(`Nueva contraseña para ${nombreUsuario}:`);
+  if (!nuevaPass) return;
+  if (nuevaPass.length < 4) {
+    toast('La contraseña debe tener al menos 4 caracteres', 'error');
+    return;
+  }
+  await conGuardia('restablecerPasswordEmpresa:' + userId, async () => {
+    try {
+      await apiFetch('/api/empresas/' + empresaId + '/usuarios/' + userId, {
+        method: 'PUT',
+        body: { pass: nuevaPass }
+      });
+      toast(`Contraseña de ${nombreUsuario} actualizada`, 'success');
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  });
 }
 
 let nuevaEmpresaLogoDataUrl = null;
