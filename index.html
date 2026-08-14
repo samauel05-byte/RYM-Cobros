@@ -1130,7 +1130,7 @@ async function restablecerPasswordEmpresa(empresaId, userId, nombreUsuario) {
   }
   await conGuardia('restablecerPasswordEmpresa:' + userId, async () => {
     try {
-      await apiFetch('/api/empresas/' + empresaId + '/usuarios/' + userId, {
+      await apiFetch('/api/empresas/' + empresaId + '/usuarios?userId=' + userId, {
         method: 'PUT',
         body: { pass: nuevaPass }
       });

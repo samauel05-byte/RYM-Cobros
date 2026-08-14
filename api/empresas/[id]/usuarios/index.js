@@ -2,21 +2,7 @@ import bcrypt from 'bcryptjs';
 import { sql } from '../../../_lib/db.js';
 import { requireSuperAdmin } from '../../../_lib/auth.js';
 
-export default async function handler(req, res) {
-  const admin = requireSuperAdmin(req, res);
-  if (!admin) return;
-
-  const empresaId = Number(req.query.id);
-  if (!Number.isInteger(empresaId)) {
-    res.status(400).json({ error: 'id inválido' });
-    return;
-  }
-
-  if (req.method !== 'POST') {
-    res.status(405).json({ error: 'Método no permitido' });
-    return;
-  }
-
+async function crear(req, res, empresaId) {
   const { nombre, user: usuario, pass, role } = req.body || {};
   if (!nombre || !usuario || !pass) {
     res.status(400).json({ error: 'Complete nombre, usuario y contraseña' });
@@ -50,4 +36,44 @@ export default async function handler(req, res) {
     returning id, nombre, usuario as "user", role
   `;
   res.status(201).json({ user: rows[0] });
+}
+
+async function restablecerPassword(req, res, empresaId) {
+  const userId = Number(req.query.userId);
+  if (!Number.isInteger(userId)) {
+    res.status(400).json({ error: 'userId inválido' });
+    return;
+  }
+  const { pass } = req.body || {};
+  if (!pass || pass.length < 4) {
+    res.status(400).json({ error: 'La contraseña debe tener al menos 4 caracteres' });
+    return;
+  }
+  const hash = await bcrypt.hash(pass, 10);
+  const rows = await sql`
+    update usuarios set password_hash = ${hash}
+    where id = ${userId} and empresa_id = ${empresaId}
+    returning id, nombre, usuario as "user"
+  `;
+  if (!rows[0]) {
+    res.status(404).json({ error: 'Usuario no encontrado en esa empresa' });
+    return;
+  }
+  res.status(200).json({ user: rows[0] });
+}
+
+export default async function handler(req, res) {
+  const admin = requireSuperAdmin(req, res);
+  if (!admin) return;
+
+  const empresaId = Number(req.query.id);
+  if (!Number.isInteger(empresaId)) {
+    res.status(400).json({ error: 'id inválido' });
+    return;
+  }
+
+  if (req.method === 'POST') return crear(req, res, empresaId);
+  if (req.method === 'PUT') return restablecerPassword(req, res, empresaId);
+
+  res.status(405).json({ error: 'Método no permitido' });
 }

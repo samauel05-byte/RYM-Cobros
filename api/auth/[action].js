@@ -1,9 +1,9 @@
 import bcrypt from 'bcryptjs';
 import { sql } from '../_lib/db.js';
-import { setSessionCookie } from '../_lib/auth.js';
+import { setSessionCookie, clearSessionCookie, getCurrentUser } from '../_lib/auth.js';
 import { resolveEmpresa, PLATFORM_SLUG } from '../_lib/empresa.js';
 
-export default async function handler(req, res) {
+async function login(req, res) {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Método no permitido' });
     return;
@@ -67,4 +67,41 @@ export default async function handler(req, res) {
     user: publicUser,
     empresa: { nombre: empresa.nombre, slug: empresa.slug, logoDataUrl: empresa.logoDataUrl },
   });
+}
+
+async function logout(req, res) {
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Método no permitido' });
+    return;
+  }
+  clearSessionCookie(res);
+  res.status(200).json({ ok: true });
+}
+
+async function me(req, res) {
+  const user = getCurrentUser(req);
+  if (!user) {
+    res.status(401).json({ error: 'No autenticado' });
+    return;
+  }
+  const rows = await sql`select nombre, slug, logo_data_url as "logoDataUrl" from empresas where id = ${user.empresaId}`;
+  res.status(200).json({
+    user: {
+      id: user.id,
+      nombre: user.nombre,
+      user: user.user,
+      role: user.role,
+      isSuperAdmin: !!user.isSuperAdmin,
+      empresaId: user.empresaId,
+    },
+    empresa: rows[0] || null,
+  });
+}
+
+export default async function handler(req, res) {
+  const { action } = req.query;
+  if (action === 'login') return login(req, res);
+  if (action === 'logout') return logout(req, res);
+  if (action === 'me') return me(req, res);
+  res.status(404).json({ error: 'No encontrado' });
 }
