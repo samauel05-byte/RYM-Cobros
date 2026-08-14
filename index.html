@@ -876,7 +876,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = 'SamKill 0.11';
+const APP_VERSION = 'SamKill 0.12';
 
 document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('appVersionLogin').textContent = APP_VERSION;
@@ -1015,26 +1015,26 @@ async function verDetalleEmpresa(id) {
 
     const usuariosHtml = usuarios.map(u => `
       <tr>
-        <td>${u.nombre}</td>
-        <td>@${u.user}</td>
-        <td><span class="role-badge role-${u.role}">${u.role.toUpperCase()}</span></td>
-        <td><button class="btn btn-outline" style="padding:6px 10px;font-size:11px" onclick="restablecerPasswordEmpresa(${id}, ${u.id}, '${u.nombre.replace(/'/g, "\\'")}')">🔑 Restablecer clave</button></td>
+        <td>${escapeHtml(u.nombre)}</td>
+        <td>@${escapeHtml(u.user)}</td>
+        <td><span class="role-badge role-${escapeHtml(u.role)}">${escapeHtml(u.role.toUpperCase())}</span></td>
+        <td><button class="btn btn-outline" style="padding:6px 10px;font-size:11px" onclick="restablecerPasswordEmpresa(${id}, ${u.id}, '${escapeJsAttr(u.nombre)}')">🔑 Restablecer clave</button></td>
       </tr>
     `).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--muted)">Sin usuarios</td></tr>';
 
     const prestamosHtml = prestamos.map(p => `
       <tr>
-        <td>${p.nombre}</td>
-        <td>${p.cedula || 'Sin cédula'}</td>
+        <td>${escapeHtml(p.nombre)}</td>
+        <td>${p.cedula ? escapeHtml(p.cedula) : 'Sin cédula'}</td>
         <td>${fmt(p.monto)}</td>
         <td style="color:${Number(p.balance) > 0 ? 'var(--red)' : 'var(--green)'}">${fmt(p.balance)}</td>
-        <td><span class="badge ${p.frecuencia}" style="font-size:10px">${p.frecuencia}</span></td>
+        <td><span class="badge ${escapeHtml(p.frecuencia)}" style="font-size:10px">${escapeHtml(p.frecuencia)}</span></td>
         <td>${Number(p.balance) <= 0 ? '<span class="badge pagado">Pagado</span>' : '<span class="badge active">Activo</span>'}</td>
       </tr>
     `).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--muted)">Sin préstamos todavía</td></tr>';
 
     content.innerHTML = `
-      <h2 style="margin-bottom:16px">🏢 ${empresa.nombre}</h2>
+      <h2 style="margin-bottom:16px">🏢 ${escapeHtml(empresa.nombre)}</h2>
       <div class="desglose-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:20px">
         <div class="d-card"><div class="d-label">Total Prestado</div><div class="d-value" style="color:var(--gold)">${fmt(totales.totalPrestado)}</div></div>
         <div class="d-card"><div class="d-label">Saldo Pendiente</div><div class="d-value" style="color:var(--red)">${fmt(totales.saldoPendiente)}</div></div>
@@ -1392,6 +1392,17 @@ function calcPrestamo(monto, porciento, cuotas, frecuencia) {
 
 function fmt(n) { return 'RD$ ' + Number(n).toLocaleString('es-DO', {minimumFractionDigits:2, maximumFractionDigits:2}); }
 function fmtN(n) { return Number(n).toLocaleString('es-DO', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+
+// Escapa texto para insertarlo de forma segura dentro de HTML (previene XSS
+// almacenado cuando se muestran datos de una empresa en la sesión del super admin).
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+// Igual que escapeHtml pero además apto para usarse dentro de un string JS
+// de comillas simples embebido en un atributo onclick="..." (ej. onclick="fn('${...}')").
+function escapeJsAttr(str) {
+  return escapeHtml(String(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, '\\n'));
+}
 
 function renderCalcTable(calc, bodyId) {
   const tbody = document.getElementById(bodyId);
