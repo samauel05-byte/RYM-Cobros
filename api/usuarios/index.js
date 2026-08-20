@@ -17,6 +17,10 @@ async function crear(req, res, admin) {
     res.status(400).json({ error: 'role inválido' });
     return;
   }
+  if (pass.length < 4) {
+    res.status(400).json({ error: 'La contraseña debe tener al menos 4 caracteres' });
+    return;
+  }
   const dup = await sql`select id from usuarios where usuario = ${usuario} and empresa_id = ${admin.empresaId}`;
   if (dup.length) {
     res.status(409).json({ error: 'Ese usuario ya existe' });
@@ -39,6 +43,10 @@ async function editar(req, res, admin, id) {
   }
   if (!['admin', 'cajero', 'viewer'].includes(role)) {
     res.status(400).json({ error: 'role inválido' });
+    return;
+  }
+  if (pass && pass.length < 4) {
+    res.status(400).json({ error: 'La contraseña debe tener al menos 4 caracteres' });
     return;
   }
   const dup = await sql`select id from usuarios where usuario = ${usuario} and id != ${id} and empresa_id = ${admin.empresaId}`;

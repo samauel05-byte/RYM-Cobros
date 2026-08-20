@@ -876,7 +876,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = 'SamKill 0.13';
+const APP_VERSION = 'SamKill 0.14';
 
 document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('appVersionLogin').textContent = APP_VERSION;
@@ -990,7 +990,7 @@ async function renderEmpresas() {
     container.innerHTML = empresas.map(e => `
       <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:12px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
         <div style="flex:1;min-width:200px">
-          <div style="font-weight:700;font-size:16px">${e.nombre} ${e.esDefault ? '<span class="badge active" style="margin-left:6px;font-size:10px">Principal</span>' : ''}</div>
+          <div style="font-weight:700;font-size:16px">${escapeHtml(e.nombre)} ${e.esDefault ? '<span class="badge active" style="margin-left:6px;font-size:10px">Principal</span>' : ''}</div>
           <div style="font-size:12px;color:var(--muted);margin-top:4px">${e.totalUsuarios} usuario(s) • ${e.totalPrestamos} préstamo(s)</div>
         </div>
         <div style="background:var(--dark3);border-radius:8px;padding:8px 12px;font-size:12px;color:var(--gold);word-break:break-all">${base}/${e.slug}</div>
@@ -1598,7 +1598,7 @@ function renderDashboard() {
   const recent = [...ps].slice(-8).reverse();
   tbody.innerHTML = recent.map(p => `
     <tr>
-      <td><strong>${p.nombre}</strong></td>
+      <td><strong>${escapeHtml(p.nombre)}</strong></td>
       <td>${fmt(p.monto)}</td>
       <td><span class="badge ${p.frecuencia}">${p.frecuencia}</span></td>
       <td style="color:var(--gold)">${fmt(p.cuota)}</td>
@@ -1702,8 +1702,8 @@ function renderClientes() {
 
     return `<tr style="${ps2.status === 'atrasado' ? 'background:rgba(231,76,60,0.04)' : ''}">
       <td>
-        <div style="font-weight:700;font-size:14px">${p.nombre}</div>
-        <div style="font-size:11px;color:var(--muted)">${p.cedula||'Sin cédula'}</div>
+        <div style="font-weight:700;font-size:14px">${escapeHtml(p.nombre)}</div>
+        <div style="font-size:11px;color:var(--muted)">${p.cedula ? escapeHtml(p.cedula) : 'Sin cédula'}</div>
       </td>
       <td style="font-weight:600">${fmt(p.monto)}</td>
       <td style="color:var(--gold);font-weight:700;font-size:16px">${p.porciento}%</td>
@@ -1764,8 +1764,8 @@ function renderCobros() {
     <div class="pago-row">
       <div class="user-avatar" style="flex-shrink:0">${p.nombre.charAt(0)}</div>
       <div class="pago-info">
-        <div class="pago-name">${p.nombre}</div>
-        <div class="pago-meta">${p.cedula||'Sin cédula'} • <span class="badge ${p.frecuencia}">${p.frecuencia}</span> • ${p.porciento}% interés</div>
+        <div class="pago-name">${escapeHtml(p.nombre)}</div>
+        <div class="pago-meta">${p.cedula ? escapeHtml(p.cedula) : 'Sin cédula'} • <span class="badge ${p.frecuencia}">${p.frecuencia}</span> • ${p.porciento}% interés</div>
       </div>
       <div>
         <div style="text-align:center">
@@ -1927,8 +1927,8 @@ function verDesglose(id) {
       <div class="desglose-header" style="margin-bottom:0">
         <div class="desglose-avatar">${p.nombre.charAt(0)}</div>
         <div style="flex:1">
-          <div class="desglose-name">${p.nombre}</div>
-          <div class="desglose-id">Cédula: ${p.cedula||'N/A'} &nbsp;•&nbsp; Préstamo #${p.id} &nbsp;•&nbsp; Inicio: ${p.fechaInicio||'N/A'}</div>
+          <div class="desglose-name">${escapeHtml(p.nombre)}</div>
+          <div class="desglose-id">Cédula: ${p.cedula ? escapeHtml(p.cedula) : 'N/A'} &nbsp;•&nbsp; Préstamo #${p.id} &nbsp;•&nbsp; Inicio: ${p.fechaInicio||'N/A'}</div>
         </div>
         <div style="text-align:right">
           ${payStatus.status === 'aldia'
@@ -1976,7 +1976,7 @@ function verDesglose(id) {
         <td style="color:var(--muted)">${i+1}</td>
         <td>${h.fecha}</td>
         <td style="color:var(--green);font-weight:700">${fmt(h.monto)}</td>
-        <td>${h.nota||'—'}</td>
+        <td>${h.nota ? escapeHtml(h.nota) : '—'}</td>
         <td style="color:var(--gold)">${fmt(h.balanceTras)}</td>
       </tr>`).join('');
     document.getElementById('desgloseContent').innerHTML += `
@@ -2009,8 +2009,8 @@ function abrirPago(id) {
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
       <div class="user-avatar">${p.nombre.charAt(0)}</div>
       <div>
-        <div style="font-weight:700;font-size:15px">${p.nombre}</div>
-        <div style="font-size:12px;color:var(--muted)">${p.cedula||'Sin cédula'} • ${p.frecuencia.toUpperCase()}</div>
+        <div style="font-weight:700;font-size:15px">${escapeHtml(p.nombre)}</div>
+        <div style="font-size:12px;color:var(--muted)">${p.cedula ? escapeHtml(p.cedula) : 'Sin cédula'} • ${p.frecuencia.toUpperCase()}</div>
       </div>
       <div style="margin-left:auto">
         ${payStatus.status === 'atrasado' ? `<span class="badge vencido">⚠ ATRASADO</span>` : `<span class="badge active">✅ AL DÍA</span>`}
@@ -2133,8 +2133,8 @@ function renderUsuarios() {
     <div class="user-card">
       <div class="u-av" style="background:${colors[u.role]||'#555'};color:${u.role==='admin'?'#000':'#fff'}">${u.nombre.charAt(0).toUpperCase()}</div>
       <div class="u-info">
-        <div class="u-name">${u.nombre}</div>
-        <div class="u-meta">@${u.user} • ${u.role === 'admin' ? 'Acceso total al sistema' : u.role === 'cajero' ? 'Puede registrar pagos' : 'Solo puede ver datos'}</div>
+        <div class="u-name">${escapeHtml(u.nombre)}</div>
+        <div class="u-meta">@${escapeHtml(u.user)} • ${u.role === 'admin' ? 'Acceso total al sistema' : u.role === 'cajero' ? 'Puede registrar pagos' : 'Solo puede ver datos'}</div>
       </div>
       <span class="role-badge role-${u.role}">${u.role.toUpperCase()}</span>
       <div style="display:flex;gap:8px;align-items:center">
@@ -2256,7 +2256,7 @@ function editarPrestamo(id) {
     <div style="display:flex;align-items:center;gap:10px">
       <div class="user-avatar" style="flex-shrink:0">${p.nombre.charAt(0)}</div>
       <div>
-        <strong>${p.nombre}</strong> — Balance actual: <span style="color:var(--red);font-weight:700">${fmt(p.balance)}</span>
+        <strong>${escapeHtml(p.nombre)}</strong> — Balance actual: <span style="color:var(--red);font-weight:700">${fmt(p.balance)}</span>
         &nbsp;•&nbsp; Pagado: <span style="color:var(--green);font-weight:700">${fmt(p.totalPagado)}</span>
       </div>
     </div>`;
@@ -2344,8 +2344,8 @@ function renderReenganche() {
     <div style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:12px;display:flex;align-items:center;gap:16px">
       <div class="user-avatar" style="width:52px;height:52px;font-size:20px;flex-shrink:0;border-radius:12px">${p.nombre.charAt(0)}</div>
       <div style="flex:1">
-        <div style="font-weight:700;font-size:16px">${p.nombre}</div>
-        <div style="font-size:12px;color:var(--muted);margin-top:3px">${p.cedula||'Sin cédula'}</div>
+        <div style="font-weight:700;font-size:16px">${escapeHtml(p.nombre)}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:3px">${p.cedula ? escapeHtml(p.cedula) : 'Sin cédula'}</div>
         <div style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap">
           <div><span style="font-size:10px;color:var(--muted);text-transform:uppercase">Último préstamo</span><div style="font-weight:700;color:var(--gold)">${fmt(p.monto)}</div></div>
           <div><span style="font-size:10px;color:var(--muted);text-transform:uppercase">Interés</span><div style="font-weight:700;color:var(--text)">${p.porciento}%</div></div>
@@ -2375,8 +2375,8 @@ function abrirReenganche(id) {
     <div style="display:flex;align-items:center;gap:12px">
       <div class="user-avatar" style="width:48px;height:48px;font-size:18px">${p.nombre.charAt(0)}</div>
       <div style="flex:1">
-        <div style="font-weight:700;font-size:16px">${p.nombre}</div>
-        <div style="font-size:12px;color:var(--muted);margin-top:3px">${p.cedula||'Sin cédula'}</div>
+        <div style="font-weight:700;font-size:16px">${escapeHtml(p.nombre)}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:3px">${p.cedula ? escapeHtml(p.cedula) : 'Sin cédula'}</div>
       </div>
       <div style="text-align:right">
         <div style="font-size:11px;color:var(--muted)">Último préstamo</div>
