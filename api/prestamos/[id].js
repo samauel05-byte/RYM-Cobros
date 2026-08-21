@@ -1,6 +1,6 @@
 import { sql, getPool } from '../_lib/db.js';
 import { requireAdmin, requireCajeroOrAdmin } from '../_lib/auth.js';
-import { calcPrestamo, validatePrestamoInput } from '../_lib/calc.js';
+import { calcPrestamo, validatePrestamoInput, aplicarPagoRevolvente, sumarPeriodo } from '../_lib/calc.js';
 
 async function editar(req, res, id) {
   const user = requireAdmin(req, res);
@@ -14,23 +14,28 @@ async function editar(req, res, id) {
   }
   const { nombre, cedula, monto, porciento, cuotas, frecuencia, fechaInicio } = body;
 
-  const existingRows = await sql`select total_pagado from prestamos where id = ${id} and empresa_id = ${user.empresaId}`;
+  // Los términos (nombre, %, frecuencia, etc.) se pueden corregir, pero el capital
+  // pendiente y el interés acumulado NO se tocan aquí — solo cambian al registrar
+  // un pago. Editar nunca borra el progreso real de la deuda.
+  const existingRows = await sql`select capital_pendiente from prestamos where id = ${id} and empresa_id = ${user.empresaId}`;
   if (!existingRows[0]) {
     res.status(404).json({ error: 'Préstamo no encontrado' });
     return;
   }
-  const pagado = Number(existingRows[0].total_pagado);
-  const { cuota, total } = calcPrestamo(Number(monto), Number(porciento), Number(cuotas), frecuencia);
-  const nuevoBalance = Math.max(0, total - pagado);
+  const capitalPendiente = Number(existingRows[0].capital_pendiente);
+  const { total } = calcPrestamo(Number(monto), Number(porciento), Number(cuotas), frecuencia);
+  const cuota = capitalPendiente * (Number(porciento) / 100);
 
   const rows = await sql`
     update prestamos set
       nombre = ${nombre}, cedula = ${cedula || null}, monto = ${monto}, porciento = ${porciento},
       frecuencia = ${frecuencia}, cuotas = ${cuotas}, total_pagar = ${total}, cuota = ${cuota},
-      balance = ${nuevoBalance}, fecha_inicio = ${fechaInicio || null}, updated_at = now()
+      fecha_inicio = ${fechaInicio || null}, updated_at = now()
     where id = ${id} and empresa_id = ${user.empresaId}
     returning id, nombre, cedula, monto, porciento, frecuencia, cuotas,
       total_pagar as "totalPagar", cuota, balance, total_pagado as "totalPagado",
+      capital_pendiente as "capitalPendiente", interes_pendiente as "interesPendiente",
+      ultima_fecha_pago as "ultimaFechaPago", proxima_fecha_pago as "proximaFechaPago",
       fecha_inicio as "fechaInicio", estado, reenganche_de as "reenganchemDe"
   `;
   res.status(200).json({ prestamo: rows[0] });
@@ -64,36 +69,53 @@ async function pagar(req, res, id) {
   try {
     await client.query('BEGIN');
     const { rows } = await client.query(
-      'select balance, total_pagado from prestamos where id = $1 and empresa_id = $2 for update',
+      `select capital_pendiente, interes_pendiente, ultima_fecha_pago, fecha_inicio,
+         porciento, frecuencia, total_pagado
+       from prestamos where id = $1 and empresa_id = $2 for update`,
       [id, user.empresaId]
     );
     const p = rows[0];
+    const capitalActual = p ? Number(p.capital_pendiente) : 0;
+    const interesActual = p ? Number(p.interes_pendiente) : 0;
     if (!p) {
       result = null;
-    } else if (Number(p.balance) <= 0) {
+    } else if (capitalActual + interesActual <= 0) {
       result = { yaPagado: true };
     } else {
-      const balanceActual = Number(p.balance);
-      const aplicado = Math.min(montoPago, balanceActual);
-      const nuevoBalance = Math.max(0, balanceActual - aplicado);
-      const nuevoTotalPagado = Number(p.total_pagado) + aplicado;
       const fecha = new Date().toISOString().split('T')[0];
+      const r = aplicarPagoRevolvente(
+        {
+          capitalPendiente: p.capital_pendiente,
+          interesPendiente: p.interes_pendiente,
+          ultimaFechaPago: p.ultima_fecha_pago,
+          fechaInicio: p.fecha_inicio,
+          porciento: p.porciento,
+          frecuencia: p.frecuencia,
+        },
+        montoPago,
+        fecha
+      );
+      const nuevoTotalPagado = Number(p.total_pagado) + r.aplicado;
 
       const updated = await client.query(
-        `update prestamos set balance = $1, total_pagado = $2, updated_at = now()
-         where id = $3
+        `update prestamos set
+           capital_pendiente = $1, interes_pendiente = $2, ultima_fecha_pago = $3,
+           proxima_fecha_pago = $4, balance = $5, cuota = $6, total_pagado = $7, updated_at = now()
+         where id = $8
          returning id, nombre, cedula, monto, porciento, frecuencia, cuotas,
            total_pagar as "totalPagar", cuota, balance, total_pagado as "totalPagado",
+           capital_pendiente as "capitalPendiente", interes_pendiente as "interesPendiente",
+           ultima_fecha_pago as "ultimaFechaPago", proxima_fecha_pago as "proximaFechaPago",
            fecha_inicio as "fechaInicio", estado, reenganche_de as "reenganchemDe"`,
-        [nuevoBalance, nuevoTotalPagado, id]
+        [r.capitalPendiente, r.interesPendiente, r.ultimaFechaPago, r.proximaFechaPago, r.balance, r.cuota, nuevoTotalPagado, id]
       );
       const pagoRow = await client.query(
         `insert into pagos (prestamo_id, fecha, monto, nota, balance_tras)
          values ($1, $2, $3, $4, $5)
          returning id, fecha, monto, nota, balance_tras as "balanceTras"`,
-        [id, fecha, aplicado, nota || 'Pago registrado', nuevoBalance]
+        [id, fecha, r.aplicado, nota || 'Pago registrado', r.balance]
       );
-      result = { prestamo: updated.rows[0], pago: pagoRow.rows[0], aplicado };
+      result = { prestamo: updated.rows[0], pago: pagoRow.rows[0], aplicado: r.aplicado };
     }
     await client.query('COMMIT');
   } catch (e) {
@@ -124,7 +146,7 @@ async function reenganchar(req, res, id) {
     return;
   }
   if (Number(original.balance) > 0) {
-    res.status(400).json({ error: 'El préstamo original aún no está pagado completamente' });
+    res.status(400).json({ error: 'El préstamo original aún no está pagado completamente (capital + interés pendiente)' });
     return;
   }
 
@@ -136,12 +158,25 @@ async function reenganchar(req, res, id) {
   }
   const { monto, porciento, cuotas, frecuencia, fechaInicio } = body;
   const { cuota, total } = calcPrestamo(Number(monto), Number(porciento), Number(cuotas), frecuencia);
+  const fechaInicioFinal = fechaInicio || new Date().toISOString().split('T')[0];
+  const proximaFechaPago = sumarPeriodo(fechaInicioFinal, frecuencia);
+  const cuotaInicial = Number(monto) * (Number(porciento) / 100);
 
   const rows = await sql`
-    insert into prestamos (empresa_id, nombre, cedula, monto, porciento, frecuencia, cuotas, total_pagar, cuota, balance, total_pagado, fecha_inicio, estado, reenganche_de)
-    values (${user.empresaId}, ${original.nombre}, ${original.cedula}, ${monto}, ${porciento}, ${frecuencia}, ${cuotas}, ${total}, ${cuota}, ${total}, 0, ${fechaInicio || null}, 'activo', ${id})
+    insert into prestamos (
+      empresa_id, nombre, cedula, monto, porciento, frecuencia, cuotas, total_pagar, cuota,
+      balance, total_pagado, capital_pendiente, interes_pendiente, ultima_fecha_pago,
+      proxima_fecha_pago, fecha_inicio, estado, reenganche_de
+    )
+    values (
+      ${user.empresaId}, ${original.nombre}, ${original.cedula}, ${monto}, ${porciento}, ${frecuencia}, ${cuotas}, ${total}, ${cuotaInicial},
+      ${monto}, 0, ${monto}, 0, ${fechaInicioFinal},
+      ${proximaFechaPago}, ${fechaInicioFinal}, 'activo', ${id}
+    )
     returning id, nombre, cedula, monto, porciento, frecuencia, cuotas,
       total_pagar as "totalPagar", cuota, balance, total_pagado as "totalPagado",
+      capital_pendiente as "capitalPendiente", interes_pendiente as "interesPendiente",
+      ultima_fecha_pago as "ultimaFechaPago", proxima_fecha_pago as "proximaFechaPago",
       fecha_inicio as "fechaInicio", estado, reenganche_de as "reenganchemDe"
   `;
   const prestamo = { ...rows[0], historialPagos: [] };

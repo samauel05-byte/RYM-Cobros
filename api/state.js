@@ -13,6 +13,8 @@ export default async function handler(req, res) {
     select
       p.id, p.nombre, p.cedula, p.monto, p.porciento, p.frecuencia, p.cuotas,
       p.total_pagar as "totalPagar", p.cuota, p.balance, p.total_pagado as "totalPagado",
+      p.capital_pendiente as "capitalPendiente", p.interes_pendiente as "interesPendiente",
+      p.ultima_fecha_pago as "ultimaFechaPago", p.proxima_fecha_pago as "proximaFechaPago",
       p.fecha_inicio as "fechaInicio", p.estado, p.reenganche_de as "reenganchemDe",
       coalesce(
         (select json_agg(json_build_object(

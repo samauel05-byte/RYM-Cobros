@@ -24,24 +24,33 @@ CREATE TABLE IF NOT EXISTS usuarios (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS usuarios_platform_usuario_key ON usuarios (usuario) WHERE empresa_id IS NULL;
 
+-- Modelo revolvente: el capital (monto) queda como deuda pendiente indefinidamente
+-- hasta saldarse por completo; el interés se acumula por período sobre
+-- capital_pendiente y se cobra aparte. balance = capital_pendiente + interes_pendiente
+-- (columna calculada en cada respuesta de la API, no almacenada). Reenganche solo
+-- disponible cuando capital_pendiente + interes_pendiente = 0.
 CREATE TABLE IF NOT EXISTS prestamos (
-  id             SERIAL PRIMARY KEY,
-  empresa_id     INTEGER NOT NULL REFERENCES empresas(id),
-  nombre         TEXT NOT NULL,
-  cedula         TEXT,
-  monto          NUMERIC(14,2) NOT NULL,
-  porciento      NUMERIC(6,2) NOT NULL,
-  frecuencia     TEXT NOT NULL CHECK (frecuencia IN ('diario', 'semanal', 'mensual')),
-  cuotas         INTEGER NOT NULL,
-  total_pagar    NUMERIC(14,2) NOT NULL,
-  cuota          NUMERIC(14,2) NOT NULL,
-  balance        NUMERIC(14,2) NOT NULL,
-  total_pagado   NUMERIC(14,2) NOT NULL DEFAULT 0,
-  fecha_inicio   DATE,
-  estado         TEXT NOT NULL DEFAULT 'activo',
-  reenganche_de  INTEGER REFERENCES prestamos(id) ON DELETE SET NULL,
-  created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+  id                  SERIAL PRIMARY KEY,
+  empresa_id          INTEGER NOT NULL REFERENCES empresas(id),
+  nombre              TEXT NOT NULL,
+  cedula              TEXT,
+  monto               NUMERIC(14,2) NOT NULL,
+  porciento           NUMERIC(6,2) NOT NULL,
+  frecuencia          TEXT NOT NULL CHECK (frecuencia IN ('diario', 'semanal', 'mensual')),
+  cuotas              INTEGER NOT NULL,
+  total_pagar         NUMERIC(14,2) NOT NULL,
+  cuota               NUMERIC(14,2) NOT NULL,
+  balance             NUMERIC(14,2) NOT NULL,
+  total_pagado        NUMERIC(14,2) NOT NULL DEFAULT 0,
+  capital_pendiente   NUMERIC(14,2) NOT NULL,
+  interes_pendiente   NUMERIC(14,2) NOT NULL DEFAULT 0,
+  ultima_fecha_pago   DATE,
+  proxima_fecha_pago  DATE,
+  fecha_inicio        DATE,
+  estado              TEXT NOT NULL DEFAULT 'activo',
+  reenganche_de       INTEGER REFERENCES prestamos(id) ON DELETE SET NULL,
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS pagos (

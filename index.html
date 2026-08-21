@@ -877,7 +877,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = 'SamKill 0.16';
+const APP_VERSION = 'SamKill 0.17';
 
 document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('appVersionLogin').textContent = APP_VERSION;
@@ -1258,12 +1258,16 @@ function normalizarPrestamo(p) {
     cuota: Number(p.cuota),
     balance: Number(p.balance),
     totalPagado: Number(p.totalPagado),
+    capitalPendiente: Number(p.capitalPendiente),
+    interesPendiente: Number(p.interesPendiente),
     // Postgres devuelve las columnas DATE de nivel superior como timestamp completo
     // (ej. "2026-04-14T00:00:00.000Z") mientras que dentro de un json_build_object
     // (como historialPagos) las serializa como fecha simple. Se recorta a los
     // primeros 10 caracteres ("YYYY-MM-DD") para que <input type="date"> y las
     // pantallas que muestran la fecha directamente funcionen igual en ambos casos.
     fechaInicio: p.fechaInicio ? String(p.fechaInicio).slice(0, 10) : null,
+    ultimaFechaPago: p.ultimaFechaPago ? String(p.ultimaFechaPago).slice(0, 10) : null,
+    proximaFechaPago: p.proximaFechaPago ? String(p.proximaFechaPago).slice(0, 10) : null,
     historialPagos: (p.historialPagos || []).map(h => ({
       ...h,
       monto: Number(h.monto),
@@ -1622,39 +1626,47 @@ let clienteEstadoFilter = 'todos';
 function filterClientes(v) { clienteSearch = v.toLowerCase(); renderClientes(); }
 function filterEstadoCliente(v) { clienteEstadoFilter = v; renderClientes(); }
 
-// Calcula cuántos períodos han pasado desde la fecha de inicio
-function getPeriodosPasados(p) {
-  if (!p.fechaInicio) return 0;
-  const inicio = new Date(p.fechaInicio);
-  const hoy = new Date();
-  const diffMs = hoy - inicio;
-  const diffDias = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  if (p.frecuencia === 'diario')   return diffDias;
-  if (p.frecuencia === 'semanal')  return Math.floor(diffDias / 7);
-  if (p.frecuencia === 'mensual')  return Math.floor(diffDias / 30);
-  return 0;
+const DIAS_POR_PERIODO = { diario: 1, semanal: 7, mensual: 30 };
+
+// Modelo revolvente: el capital queda pendiente indefinidamente hasta saldarse;
+// el interés se acumula por período sobre capitalPendiente, anclado a
+// ultimaFechaPago (o fechaInicio si aún no hay pagos). Debe permanecer idéntico
+// a interesAdeudado() en api/_lib/calc.js — es un preview de solo lectura,
+// el cálculo real y autoritativo ocurre siempre en el servidor.
+function interesAdeudadoJS(p, fechaHoyStr) {
+  const rate = p.porciento / 100;
+  const dias = DIAS_POR_PERIODO[p.frecuencia] || 30;
+  const ancla = new Date(p.ultimaFechaPago || p.fechaInicio);
+  const hoy = new Date(fechaHoyStr);
+  const diasTranscurridos = Math.floor((hoy - ancla) / 86400000);
+  const periodos = Math.max(0, Math.floor(diasTranscurridos / dias));
+  const interesNuevo = p.capitalPendiente * rate * periodos;
+  const totalAdeudado = p.interesPendiente + interesNuevo;
+  return { periodos, interesNuevo, totalAdeudado };
 }
 
 // Determina el estado de pago del cliente
 function getPayStatus(p) {
   if (p.balance <= 0) return { status: 'pagado', label: 'PAGADO', color: 'var(--blue)', mora: 0 };
-  const calc = calcPrestamo(p.monto, p.porciento, p.cuotas, p.frecuencia);
-  const cuota = p.frecuencia === 'diario' ? calc.diario.cuota
-              : p.frecuencia === 'semanal' ? calc.semanal.cuota : calc.mensual.cuota;
-  const cuotasPagadas = cuota > 0 ? Math.floor(p.totalPagado / cuota) : 0;
-  const periodosPasados = Math.min(getPeriodosPasados(p), p.cuotas);
-  const cuotasAtrasadas = Math.max(0, periodosPasados - cuotasPagadas);
+  const hoy = new Date().toISOString().split('T')[0];
+  const { periodos, totalAdeudado } = interesAdeudadoJS(p, hoy);
+  const cuota = p.capitalPendiente * (p.porciento / 100);
 
-  if (cuotasAtrasadas === 0) {
+  if (totalAdeudado <= 0) {
     return { status: 'aldia', label: 'AL DÍA', color: 'var(--green)', mora: 0, cuotasAtrasadas: 0, cuota };
   } else {
-    // Mora = recargo del mismo % sobre cada cuota atrasada (ADICIONAL)
-    // Fórmula: cuota × porciento% × cuotas_atrasadas
-    // Ej: cuota=738, 12%, 2 semanas → mora = 738 × 0.12 × 2 = 177.12 RD$ EXTRA
-    const mora = cuota * (p.porciento / 100) * cuotasAtrasadas;
-    const cuotasDeuda = cuota * cuotasAtrasadas;   // lo que debe por semanas/días/meses vencidos
-    const totalConMora = cuotasDeuda + mora;        // total incluyendo recargo
-    return { status: 'atrasado', label: `ATRASADO (${cuotasAtrasadas})`, color: 'var(--red)', mora, cuotasAtrasadas, cuota, cuotasDeuda, totalConMora };
+    // "mora" = todo lo que se adeuda de interés hoy (períodos nuevos + lo que
+    // ya estaba pendiente de pagos anteriores que no cubrieron el mínimo).
+    return {
+      status: 'atrasado',
+      label: periodos > 0 ? `ATRASADO (${periodos})` : 'PENDIENTE',
+      color: 'var(--red)',
+      mora: totalAdeudado,
+      cuotasAtrasadas: periodos,
+      cuota,
+      cuotasDeuda: p.interesPendiente,
+      totalConMora: totalAdeudado,
+    };
   }
 }
 
@@ -1678,10 +1690,9 @@ function renderClientes() {
     return;
   }
   tbody.innerHTML = ps.map(p => {
-    const calc = calcPrestamo(p.monto, p.porciento, p.cuotas, p.frecuencia);
-    const cuota = p.frecuencia === 'diario' ? calc.diario.cuota
-                : p.frecuencia === 'semanal' ? calc.semanal.cuota : calc.mensual.cuota;
     const ps2 = getPayStatus(p);
+    const cuota = ps2.cuota;
+    const unidadPeriodo = p.frecuencia === 'diario' ? 'día(s)' : p.frecuencia === 'semanal' ? 'semana(s)' : 'mes(es)';
 
     let statusCell;
     if (ps2.status === 'pagado') {
@@ -1691,14 +1702,13 @@ function renderClientes() {
     } else {
       statusCell = `<div>
         <span class="badge vencido" style="font-size:11px;background:rgba(231,76,60,.15);color:var(--red)">⚠ ATRASADO</span>
-        <div style="font-size:10px;color:var(--red);margin-top:3px">${ps2.cuotasAtrasadas} cuota(s)</div>
+        <div style="font-size:10px;color:var(--red);margin-top:3px">${ps2.cuotasAtrasadas} ${unidadPeriodo}</div>
       </div>`;
     }
 
     const moraCell = ps2.mora > 0
       ? `<div style="color:var(--red);font-weight:700">${fmt(ps2.mora)}</div>
-         <div style="font-size:10px;color:var(--muted);margin-top:2px">${fmt(ps2.cuota)} × ${p.porciento}% × ${ps2.cuotasAtrasadas} sem.</div>
-         <div style="font-size:11px;color:#ff8c69;font-weight:600;margin-top:3px">Total c/mora: ${fmt(ps2.totalConMora)}</div>`
+         <div style="font-size:10px;color:var(--muted);margin-top:2px">Mínimo para ponerse al día: ${fmt(ps2.totalConMora)}</div>`
       : `<span style="color:var(--muted)">—</span>`;
 
     const estadoLoan = p.balance <= 0
@@ -1706,7 +1716,7 @@ function renderClientes() {
            <span class="badge pagado" style="text-align:center">✔ Completado</span>
            <button class="btn btn-gold" style="padding:6px 10px;font-size:11px;letter-spacing:1px" onclick="abrirReenganche(${p.id})">🔄 Reenganche</button>
          </div>`
-      : `<div><span class="badge active">Activo</span><div style="font-size:11px;color:var(--muted);margin-top:3px">${fmt(p.balance)} pendiente</div></div>`;
+      : `<div><span class="badge active">Activo</span><div style="font-size:11px;color:var(--muted);margin-top:3px">${fmt(p.balance)} pendiente</div>${p.proximaFechaPago ? `<div style="font-size:10px;color:var(--muted);margin-top:2px">📅 Próx. pago: ${p.proximaFechaPago}</div>` : ''}</div>`;
 
     return `<tr style="${ps2.status === 'atrasado' ? 'background:rgba(231,76,60,0.04)' : ''}">
       <td>
@@ -1766,8 +1776,9 @@ function renderCobros() {
     return;
   }
   container.innerHTML = ps.map(p => {
-    const calc = calcPrestamo(p.monto, p.porciento, p.cuotas, p.frecuencia);
-    const cuota = p.frecuencia === 'diario' ? calc.diario.cuota : p.frecuencia === 'semanal' ? calc.semanal.cuota : calc.mensual.cuota;
+    // Equivalencias por frecuencia calculadas sobre el capital pendiente actual
+    // (no el monto original), para reflejar abonos a capital ya realizados.
+    const calc = calcPrestamo(p.capitalPendiente, p.porciento, p.cuotas, p.frecuencia);
     return `
     <div class="pago-row">
       <div class="user-avatar" style="flex-shrink:0">${p.nombre.charAt(0)}</div>
@@ -1887,42 +1898,21 @@ function verDesglose(id) {
   const data = getData();
   const p = data.prestamos.find(x => x.id === id);
   if (!p) return;
-  const calc = calcPrestamo(p.monto, p.porciento, p.cuotas, p.frecuencia);
-  const cuotaUsada = p.frecuencia === 'diario' ? calc.diario.cuota
-                   : p.frecuencia === 'semanal' ? calc.semanal.cuota : calc.mensual.cuota;
-  const cuotasPagadas = cuotaUsada > 0 ? Math.floor(p.totalPagado / cuotaUsada) : 0;
-  const pct = Math.min(100, Math.round(p.totalPagado / p.totalPagar * 100));
+  // Equivalencias por frecuencia sobre el capital pendiente actual (no el monto original).
+  const calc = calcPrestamo(p.capitalPendiente, p.porciento, p.cuotas, p.frecuencia);
   const payStatus = getPayStatus(p);
   const hoy = new Date().toLocaleDateString('es-DO', {day:'2-digit',month:'long',year:'numeric'});
-
-  let rows = '';
-  for (let i = 1; i <= p.cuotas; i++) {
-    const paid = i <= cuotasPagadas;
-    const periPasado = i <= getPeriodosPasados(p);
-    const atrasada = periPasado && !paid;
-    rows += `<tr style="${atrasada ? 'background:rgba(231,76,60,0.08)' : ''}">
-      <td style="color:var(--muted);font-weight:600">${i}</td>
-      <td>${fmt(cuotaUsada)}</td>
-      <td>${paid ? `<span style="color:var(--green)">${fmt(cuotaUsada)}</span>` : `<span style="color:var(--muted)">—</span>`}</td>
-      <td>${fmt(Math.max(0, p.totalPagar - cuotaUsada * i))}</td>
-      <td>
-        ${paid ? `<span class="badge pagado">✔ Pagado</span>`
-               : atrasada ? `<span class="badge vencido">⚠ Atrasado</span>`
-               : `<span class="badge active">Pendiente</span>`}
-      </td>
-    </tr>`;
-  }
 
   const moraBlock = payStatus.mora > 0 ? `
     <div style="background:rgba(231,76,60,0.1);border:1px solid rgba(231,76,60,0.3);border-radius:12px;padding:16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between">
       <div>
-        <div style="color:var(--red);font-weight:700;font-size:15px">⚠️ MORA POR ATRASO</div>
-        <div style="font-size:12px;color:var(--muted);margin-top:4px">${fmt(payStatus.cuota)} × ${p.porciento}% × ${payStatus.cuotasAtrasadas} cuota(s) vencida(s)</div>
-        <div style="font-size:12px;color:var(--text);margin-top:6px">Cuotas vencidas: <strong style="color:var(--red)">${fmt(payStatus.cuotasDeuda)}</strong> + Recargo: <strong style="color:var(--red)">${fmt(payStatus.mora)}</strong> = <strong style="color:#ff4444">${fmt(payStatus.totalConMora)}</strong></div>
+        <div style="color:var(--red);font-weight:700;font-size:15px">⚠️ INTERÉS/MORA PENDIENTE</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px">No incluye el capital — solo el interés acumulado sin pagar</div>
+        <div style="font-size:12px;color:var(--text);margin-top:6px">Mínimo para ponerse al día: <strong style="color:#ff4444">${fmt(payStatus.totalConMora)}</strong></div>
       </div>
       <div style="text-align:right">
         <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:var(--red)">${fmt(payStatus.mora)}</div>
-        <div style="font-size:11px;color:var(--muted)">Total mora acumulada</div>
+        <div style="font-size:11px;color:var(--muted)">Interés/mora acumulada</div>
       </div>
     </div>` : '';
 
@@ -1948,18 +1938,15 @@ function verDesglose(id) {
       </div>
     </div>
     <div class="desglose-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px">
-      <div class="d-card"><div class="d-label">Monto Prestado</div><div class="d-value" style="color:var(--gold)">${fmt(p.monto)}</div></div>
+      <div class="d-card"><div class="d-label">Monto Original</div><div class="d-value" style="color:var(--gold)">${fmt(p.monto)}</div></div>
       <div class="d-card"><div class="d-label">Interés</div><div class="d-value" style="color:var(--red)">${p.porciento}%</div></div>
       <div class="d-card"><div class="d-label">Modalidad</div><div class="d-value" style="font-size:16px;text-transform:uppercase">${p.frecuencia}</div></div>
-      <div class="d-card"><div class="d-label">Cuota ${p.frecuencia === 'diario' ? 'Diaria' : p.frecuencia === 'semanal' ? 'Semanal' : 'Mensual'}</div><div class="d-value" style="color:var(--gold)">${fmt(cuotaUsada)}</div></div>
-      <div class="d-card"><div class="d-label">Total a Pagar</div><div class="d-value">${fmt(p.totalPagar)}</div></div>
-      <div class="d-card"><div class="d-label">Nº Cuotas</div><div class="d-value">${p.cuotas}</div></div>
+      <div class="d-card"><div class="d-label">Capital Pendiente</div><div class="d-value" style="color:var(--gold)">${fmt(p.capitalPendiente)}</div></div>
+      <div class="d-card"><div class="d-label">Interés/Mora Pendiente</div><div class="d-value" style="color:${p.interesPendiente > 0 ? 'var(--red)' : 'var(--text)'}">${fmt(p.interesPendiente)}</div></div>
+      <div class="d-card"><div class="d-label">Balance Total</div><div class="d-value" style="color:var(--red)">${fmt(p.balance)}</div></div>
       <div class="d-card"><div class="d-label">Total Pagado</div><div class="d-value" style="color:var(--green)">${fmt(p.totalPagado)}</div></div>
-      <div class="d-card"><div class="d-label">Balance</div><div class="d-value" style="color:var(--red)">${fmt(p.balance)}</div></div>
-      <div class="d-card"><div class="d-label">Progreso</div>
-        <div class="d-value" style="color:var(--blue)">${pct}%</div>
-        <div style="background:var(--dark4);border-radius:4px;height:6px;margin-top:6px"><div style="background:var(--blue);height:100%;border-radius:4px;width:${pct}%"></div></div>
-      </div>
+      <div class="d-card"><div class="d-label">Próximo Pago</div><div class="d-value" style="font-size:15px">${p.proximaFechaPago || '—'}</div></div>
+      <div class="d-card"><div class="d-label">Cuota ${p.frecuencia === 'diario' ? 'Diaria' : p.frecuencia === 'semanal' ? 'Semanal' : 'Mensual'}</div><div class="d-value" style="color:var(--gold)">${fmt(payStatus.cuota)}</div></div>
     </div>
     ${moraBlock}
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;background:var(--dark3);border-radius:10px;padding:14px">
@@ -1967,11 +1954,6 @@ function verDesglose(id) {
       <div style="text-align:center;border-left:1px solid var(--border);border-right:1px solid var(--border)"><div style="font-size:10px;color:var(--muted);text-transform:uppercase">Pago Semanal</div><div style="color:var(--green);font-weight:700;font-size:15px;margin-top:4px">${fmt(calc.semanal.cuota)}</div></div>
       <div style="text-align:center"><div style="font-size:10px;color:var(--muted);text-transform:uppercase">Pago Mensual</div><div style="color:var(--blue);font-weight:700;font-size:15px;margin-top:4px">${fmt(calc.mensual.cuota)}</div></div>
     </div>
-    <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Plan de Pagos (${p.frecuencia})</div>
-    <table class="desglose-table">
-      <thead><tr><th>Cuota #</th><th>Monto</th><th>Pagado</th><th>Balance</th><th>Estado</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
     <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);text-align:center;font-size:11px;color:var(--muted)">
       RYM Soluciones — Documento generado el ${hoy}
     </div>
@@ -2008,10 +1990,8 @@ function abrirPago(id) {
   if (!p) return;
   if (p.balance <= 0) { toast('Este préstamo ya está pagado completamente','error'); return; }
   pagoPrestamoId = id;
-  const calc = calcPrestamo(p.monto, p.porciento, p.cuotas, p.frecuencia);
-  const cuota = p.frecuencia === 'diario' ? calc.diario.cuota
-              : p.frecuencia === 'semanal' ? calc.semanal.cuota : calc.mensual.cuota;
   const payStatus = getPayStatus(p);
+  const cuota = payStatus.cuota;
 
   document.getElementById('pagoClienteInfo').innerHTML = `
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
@@ -2024,21 +2004,26 @@ function abrirPago(id) {
         ${payStatus.status === 'atrasado' ? `<span class="badge vencido">⚠ ATRASADO</span>` : `<span class="badge active">✅ AL DÍA</span>`}
       </div>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px">
       <div style="text-align:center;background:var(--dark4);border-radius:8px;padding:10px">
-        <div style="font-size:10px;color:var(--muted)">CUOTA ${p.frecuencia.toUpperCase()}</div>
+        <div style="font-size:10px;color:var(--muted)">CUOTA ${p.frecuencia.toUpperCase()} (interés)</div>
         <div style="color:var(--gold);font-weight:700;font-size:15px;margin-top:4px">${fmt(cuota)}</div>
       </div>
       <div style="text-align:center;background:var(--dark4);border-radius:8px;padding:10px">
-        <div style="font-size:10px;color:var(--muted)">BALANCE</div>
-        <div style="color:var(--red);font-weight:700;font-size:15px;margin-top:4px">${fmt(p.balance)}</div>
+        <div style="font-size:10px;color:var(--muted)">CAPITAL PENDIENTE</div>
+        <div style="color:var(--text);font-weight:700;font-size:15px;margin-top:4px">${fmt(p.capitalPendiente)}</div>
       </div>
       <div style="text-align:center;background:var(--dark4);border-radius:8px;padding:10px">
-        <div style="font-size:10px;color:var(--muted)">MORA</div>
+        <div style="font-size:10px;color:var(--muted)">INTERÉS/MORA ADEUDADO</div>
         <div style="color:${payStatus.mora > 0 ? 'var(--red)' : 'var(--muted)'};font-weight:700;font-size:15px;margin-top:4px">${payStatus.mora > 0 ? fmt(payStatus.mora) : '—'}</div>
       </div>
+      <div style="text-align:center;background:var(--dark4);border-radius:8px;padding:10px">
+        <div style="font-size:10px;color:var(--muted)">BALANCE TOTAL</div>
+        <div style="color:var(--red);font-weight:700;font-size:15px;margin-top:4px">${fmt(p.balance)}</div>
+      </div>
     </div>
-    ${payStatus.mora > 0 ? `<div style="margin-top:10px;padding:8px 12px;background:rgba(231,76,60,.1);border-radius:8px;font-size:13px;color:var(--red)">⚠️ <strong>${payStatus.cuotasAtrasadas}</strong> cuota(s) vencida(s).<br>• Cuotas vencidas: <strong>${fmt(payStatus.cuotasDeuda)}</strong><br>• Recargo mora (${p.porciento}%): <strong>${fmt(payStatus.mora)}</strong><br>• <u>Total a cobrar ahora: ${fmt(payStatus.totalConMora)}</u></div>` : ''}
+    ${p.proximaFechaPago ? `<div style="margin-top:10px;font-size:12px;color:var(--muted)">📅 Próxima fecha de pago: <strong style="color:var(--text)">${p.proximaFechaPago}</strong></div>` : ''}
+    ${payStatus.mora > 0 ? `<div style="margin-top:10px;padding:8px 12px;background:rgba(231,76,60,.1);border-radius:8px;font-size:13px;color:var(--red)">⚠️ Este cliente adeuda interés acumulado.<br>• Interés/mora pendiente: <strong>${fmt(payStatus.mora)}</strong><br>• <u>Mínimo sugerido para ponerse al día: ${fmt(payStatus.totalConMora)}</u> (no toca el capital)</div>` : ''}
   `;
 
   // Pre-fill: si atrasado, sugerir el total con mora; si al día, la cuota normal
@@ -2065,20 +2050,29 @@ function calcPagoPreview() {
   }
 
   document.getElementById('pagoPreview').style.display = 'block';
-  const nuevoBalance = Math.max(0, p.balance - monto);
+  const hoy = new Date().toISOString().split('T')[0];
+  const { totalAdeudado } = interesAdeudadoJS(p, hoy);
+  const aplicado = Math.min(monto, p.balance);
+  const abonoACapital = Math.max(0, aplicado - totalAdeudado);
+  const nuevoBalance = Math.max(0, p.balance - aplicado);
 
   document.getElementById('prev_balanceAntes').textContent = fmt(p.balance);
-  document.getElementById('prev_pago').textContent = '- ' + fmt(monto);
+  document.getElementById('prev_pago').textContent = '- ' + fmt(aplicado);
   document.getElementById('prev_balanceDespues').textContent = fmt(nuevoBalance);
   document.getElementById('prev_balanceDespues').style.color = nuevoBalance <= 0 ? 'var(--green)' : 'var(--gold)';
   document.getElementById('prev_estado').innerHTML = nuevoBalance <= 0
     ? '<span class="badge pagado" style="font-size:12px">✔ PAGADO COMPLETO</span>'
     : monto > p.balance
     ? '<span style="color:var(--red);font-size:12px">⚠ Excede balance</span>'
-    : '<span class="badge active" style="font-size:12px">Abono parcial</span>';
+    : abonoACapital > 0
+    ? '<span class="badge active" style="font-size:12px">Abono a capital</span>'
+    : '<span class="badge active" style="font-size:12px">Solo cubre interés/mora</span>';
 
   if (monto > p.balance) {
     errEl.textContent = `⚠️ El monto ingresado (${fmt(monto)}) excede el balance pendiente (${fmt(p.balance)}). Se aplicará solo ${fmt(p.balance)}.`;
+    errEl.style.display = 'block';
+  } else if (abonoACapital === 0 && nuevoBalance > 0) {
+    errEl.textContent = `ℹ️ Este monto solo cubre el interés/mora acumulado. El capital pendiente (${fmt(p.capitalPendiente)}) no se reduce.`;
     errEl.style.display = 'block';
   } else {
     errEl.style.display = 'none';
