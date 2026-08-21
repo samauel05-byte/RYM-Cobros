@@ -708,7 +708,7 @@
   <div class="modal">
     <h2>🏢 Nueva Empresa</h2>
     <div style="background:rgba(200,168,75,0.08);border:1px solid rgba(200,168,75,0.2);border-radius:10px;padding:14px;margin-bottom:18px;font-size:13px;color:var(--gold)">
-      Se crea la empresa con su propio espacio (préstamos, usuarios y logo separados) y su primer usuario administrador.
+      Se crea la empresa con su propio espacio (préstamos, usuarios y logo separados) y su primer usuario, con el rol que elijas.
     </div>
     <div class="modal-grid">
       <div class="field full"><label>Nombre de la Empresa</label><input type="text" id="emp_nombre" placeholder="Ej: Préstamos El Sol" oninput="autoGenerarSlug()"></div>
@@ -716,9 +716,16 @@
         <label>Link (se genera solo — puedes editarlo si quieres)</label>
         <input type="text" id="emp_slug" placeholder="ej-prestamos-el-sol" oninput="marcarSlugManual()">
       </div>
-      <div class="field full"><label>Nombre del Administrador</label><input type="text" id="emp_admin_nombre" placeholder="Nombre completo"></div>
+      <div class="field full"><label>Nombre del primer usuario</label><input type="text" id="emp_admin_nombre" placeholder="Nombre completo"></div>
       <div class="field"><label>Usuario</label><input type="text" id="emp_admin_user" placeholder="admin"></div>
       <div class="field"><label>Contraseña</label><input type="password" id="emp_admin_pass" placeholder="••••••••"></div>
+      <div class="field full"><label>Rol de este primer usuario</label>
+        <select id="emp_admin_role">
+          <option value="admin">Administrador (acceso total)</option>
+          <option value="cajero">Cajero (puede registrar pagos)</option>
+          <option value="viewer">Solo lectura</option>
+        </select>
+      </div>
     </div>
     <div style="display:flex;align-items:center;gap:16px;margin-top:14px">
       <div class="s-logo" id="empLogoPreview" style="width:56px;height:56px;border-radius:12px;font-size:16px;flex-shrink:0">RYM</div>
@@ -877,7 +884,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = 'SamKill 0.17';
+const APP_VERSION = 'SamKill 0.18';
 
 document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('appVersionLogin').textContent = APP_VERSION;
@@ -1173,6 +1180,7 @@ function marcarSlugManual() {
 
 function abrirNuevaEmpresa() {
   ['emp_nombre','emp_slug','emp_admin_nombre','emp_admin_user','emp_admin_pass'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('emp_admin_role').value = 'admin';
   document.getElementById('emp_logo_file').value = '';
   document.getElementById('empLogoPreview').innerHTML = 'RYM';
   nuevaEmpresaLogoDataUrl = null;
@@ -1203,6 +1211,7 @@ async function guardarEmpresa() {
   const adminNombre = document.getElementById('emp_admin_nombre').value.trim();
   const adminUsuario = document.getElementById('emp_admin_user').value.trim();
   const adminPass = document.getElementById('emp_admin_pass').value;
+  const adminRole = document.getElementById('emp_admin_role').value;
   const errEl = document.getElementById('empresaError');
   errEl.style.display = 'none';
   if (!nombre || !slug || !adminNombre || !adminUsuario || !adminPass) {
@@ -1214,7 +1223,7 @@ async function guardarEmpresa() {
     try {
       const { empresa } = await apiFetch('/api/empresas', {
         method: 'POST',
-        body: { nombre, slug, adminNombre, adminUsuario, adminPass, logoDataUrl: nuevaEmpresaLogoDataUrl }
+        body: { nombre, slug, adminNombre, adminUsuario, adminPass, adminRole, logoDataUrl: nuevaEmpresaLogoDataUrl }
       });
       closeModal('modalEmpresa');
       toast(`🎉 Empresa "${empresa.nombre}" creada — link: ${location.origin}/${empresa.slug}`, 'success');

@@ -52,9 +52,14 @@ async function detalle(req, res, id) {
 }
 
 async function crearEmpresa(req, res) {
-  const { nombre, slug, adminNombre, adminUsuario, adminPass, logoDataUrl } = req.body || {};
+  const { nombre, slug, adminNombre, adminUsuario, adminPass, adminRole, logoDataUrl } = req.body || {};
   if (!nombre || !slug || !adminNombre || !adminUsuario || !adminPass) {
     res.status(400).json({ error: 'Complete todos los campos' });
+    return;
+  }
+  const rolePrimerUsuario = adminRole || 'admin';
+  if (!['admin', 'cajero', 'viewer'].includes(rolePrimerUsuario)) {
+    res.status(400).json({ error: 'role inválido' });
     return;
   }
   const slugNormalizado = String(slug).trim().toLowerCase();
@@ -96,7 +101,7 @@ async function crearEmpresa(req, res) {
   const hash = await bcrypt.hash(adminPass, 10);
   await sql`
     insert into usuarios (empresa_id, nombre, usuario, password_hash, role, is_super_admin)
-    values (${empresa.id}, ${adminNombre}, ${adminUsuario}, ${hash}, 'admin', false)
+    values (${empresa.id}, ${adminNombre}, ${adminUsuario}, ${hash}, ${rolePrimerUsuario}, false)
   `;
 
   res.status(201).json({ empresa });
